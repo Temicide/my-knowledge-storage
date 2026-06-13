@@ -1,0 +1,2085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ink + React: Zero to Hero — Build Interactive Terminal Apps with React</title>
+  <meta name="description" content="A comprehensive tutorial on building interactive terminal apps with React and Ink. From React fundamentals to a real file browser project.">
+  <meta property="og:title" content="Ink + React: Zero to Hero">
+  <meta property="og:description" content="Build Interactive Terminal Apps with React — from fundamentals to a real project.">
+  <meta property="og:type" content="article">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..700;1,14..32,400..700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    /* ══════════════════════════════════════════════════════════════
+       CSS RESET & BASE
+       ══════════════════════════════════════════════════════════════ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #ffffff;
+      --bg-secondary: #f9fafb;
+      --bg-tertiary: #f3f4f6;
+      --text: #111827;
+      --text-secondary: #4b5563;
+      --text-tertiary: #9ca3af;
+      --border: #e5e7eb;
+      --border-light: #f3f4f6;
+      --accent: #6366f1;
+      --accent-light: #eef2ff;
+      --accent-hover: #4f46e5;
+      --code-bg: #1e293b;
+      --code-text: #e2e8f0;
+      --inline-code-bg: #f1f5f9;
+      --inline-code-text: #e11d48;
+      --callout-bg: #f0fdf4;
+      --callout-border: #86efac;
+      --callout-text: #166534;
+      --toc-bg: #f8fafc;
+      --toc-border: #e2e8f0;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 10px 15px -3px rgba(0,0,0,0.05);
+      --radius: 8px;
+      --radius-lg: 12px;
+      --max-width: 740px;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-serif: 'Merriweather', Georgia, 'Times New Roman', serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 100px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.75;
+      font-size: 17px;
+      letter-spacing: -0.003em;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       ARTICLE LAYOUT
+       ══════════════════════════════════════════════════════════════ */
+
+    /* ── Sidebar TOC (desktop) ──────────────────────────────── */
+    .page-wrapper {
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .toc-sidebar {
+      position: fixed;
+      left: max(20px, calc((100vw - var(--max-width) - 300px) / 2 - 280px));
+      top: 100px;
+      width: 240px;
+      max-height: calc(100vh - 140px);
+      overflow-y: auto;
+      display: none;
+    }
+
+    @media (min-width: 1400px) {
+      .toc-sidebar {
+        display: block;
+      }
+    }
+
+    .toc-sidebar-sticky {
+      background: var(--toc-bg);
+      border: 1px solid var(--toc-border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+    }
+
+    .toc-sidebar-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-tertiary);
+      margin-bottom: 12px;
+    }
+
+    .toc-sidebar nav ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .toc-sidebar nav ul li {
+      margin-bottom: 4px;
+    }
+
+    .toc-sidebar nav ul li a {
+      display: block;
+      padding: 4px 8px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      border-radius: 4px;
+      transition: all 0.15s ease;
+      border-left: 2px solid transparent;
+    }
+
+    .toc-sidebar nav ul li a:hover {
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+
+    .toc-sidebar nav ul li a.active {
+      background: var(--accent-light);
+      color: var(--accent);
+      font-weight: 600;
+      border-left-color: var(--accent);
+    }
+
+    .toc-sidebar nav ul li.toc-level-3 a { padding-left: 24px; font-size: 12px; }
+
+    /* ── Main content ───────────────────────────────────────── */
+    .article-container {
+      width: 100%;
+      max-width: var(--max-width);
+      padding: 60px 24px 120px;
+    }
+
+    /* ── Cover / Hero ───────────────────────────────────────── */
+    .article-cover {
+      margin-bottom: 48px;
+      padding-bottom: 40px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .article-cover-overline {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+
+    .article-cover h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+
+    .article-cover-subtitle {
+      font-size: 1.2rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      max-width: 600px;
+    }
+
+    .article-meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 28px;
+      color: var(--text-tertiary);
+      font-size: 14px;
+    }
+
+    .article-meta-dot {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--text-tertiary);
+    }
+
+    .article-meta strong {
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       CONTENT STYLES
+       ══════════════════════════════════════════════════════════════ */
+
+    .article-content h1,
+    .article-content h2,
+    .article-content h3,
+    .article-content h4,
+    .article-content h5,
+    .article-content h6 {
+      font-family: var(--font-sans);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      position: relative;
+      line-height: 1.3;
+    }
+
+    .article-content h1 { font-size: 1.75rem; margin: 56px 0 20px; }
+    .article-content h2 { font-size: 1.5rem; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border-light); }
+    .article-content h3 { font-size: 1.25rem; margin: 40px 0 12px; }
+    .article-content h4 { font-size: 1.1rem; margin: 32px 0 10px; }
+
+    .heading-anchor {
+      position: absolute;
+      left: -28px;
+      top: 50%;
+      transform: translateY(-50%);
+      opacity: 0;
+      color: var(--text-tertiary);
+      font-size: 0.9em;
+      font-weight: 400;
+      text-decoration: none;
+      transition: opacity 0.2s ease;
+    }
+
+    h1:hover .heading-anchor,
+    h2:hover .heading-anchor,
+    h3:hover .heading-anchor,
+    h4:hover .heading-anchor {
+      opacity: 1;
+    }
+
+    .article-content p {
+      margin-bottom: 1.35em;
+      color: var(--text);
+    }
+
+    .article-content a {
+      color: var(--accent);
+      text-decoration: none;
+      border-bottom: 1px solid var(--accent-light);
+      transition: border-color 0.2s ease;
+    }
+
+    .article-content a:hover {
+      border-bottom-color: var(--accent);
+    }
+
+    .article-content strong {
+      font-weight: 650;
+      color: #0f172a;
+    }
+
+    .article-content ul,
+    .article-content ol {
+      margin: 0.8em 0 1.5em;
+      padding-left: 1.6em;
+      color: var(--text);
+    }
+
+    .article-content li {
+      margin-bottom: 0.35em;
+      padding-left: 0.2em;
+    }
+
+    .article-content li::marker {
+      color: var(--text-tertiary);
+    }
+
+    .article-content ol > li::marker {
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 0.85em;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       CODE BLOCKS
+       ══════════════════════════════════════════════════════════════ */
+
+    .code-block-wrapper {
+      margin: 1.8em 0;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--code-bg);
+      box-shadow: var(--shadow-md);
+      border: 1px solid #334155;
+    }
+
+    .code-block-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: #0f172a;
+      border-bottom: 1px solid #334155;
+    }
+
+    .code-lang {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .copy-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: 1px solid #475569;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-family: var(--font-sans);
+      font-weight: 500;
+      transition: all 0.15s ease;
+    }
+
+    .copy-btn:hover {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-color: #64748b;
+    }
+
+    .copy-btn.copied {
+      background: #065f46;
+      border-color: #059669;
+      color: #6ee7b7;
+    }
+
+    .code-block-wrapper pre {
+      margin: 0;
+      padding: 20px 16px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .code-block-wrapper code {
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      line-height: 1.65;
+      letter-spacing: -0.01em;
+    }
+
+    /* Highlight.js theme overrides — Night Owl inspired */
+    .hljs {
+      color: #d6deeb;
+      background: transparent;
+    }
+    .hljs-keyword  { color: #c792ea; font-style: italic; }
+    .hljs-string   { color: #ecc48d; }
+    .hljs-comment  { color: #637777; font-style: italic; }
+    .hljs-function { color: #82aaff; }
+    .hljs-title    { color: #82aaff; }
+    .hljs-title.function_ { color: #82aaff; }
+    .hljs-number   { color: #f78c6c; }
+    .hljs-attr     { color: #ffcb8b; }
+    .hljs-built_in { color: #ff5874; }
+    .hljs-literal  { color: #ff5874; }
+    .hljs-type     { color: #ffcb8b; }
+    .hljs-variable { color: #d6deeb; }
+    .hljs-params   { color: #d6deeb; }
+    .hljs-meta     { color: #82aaff; }
+    .hljs-tag      { color: #ff5874; }
+    .hljs-name     { color: #ff5874; }
+    .hljs-attribute { color: #ffcb8b; }
+    .hljs-selector-class { color: #ffcb8b; }
+    .hljs-selector-tag   { color: #ff5874; }
+    .hljs-punctuation    { color: #637777; }
+    .hljs-property { color: #80cbc4; }
+    .hljs-addition { color: #addb67; }
+    .hljs-deletion { color: #ef5350; }
+
+    /* ══════════════════════════════════════════════════════════════
+       INLINE CODE
+       ══════════════════════════════════════════════════════════════ */
+
+    .inline-code {
+      font-family: var(--font-mono);
+      font-size: 0.875em;
+      padding: 0.15em 0.45em;
+      background: var(--inline-code-bg);
+      color: var(--inline-code-text);
+      border-radius: 4px;
+      font-weight: 500;
+      white-space: nowrap;
+      border: 1px solid #e2e8f0;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       BLOCKQUOTES
+       ══════════════════════════════════════════════════════════════ */
+
+    .article-content blockquote {
+      margin: 1.8em 0;
+      padding: 16px 20px;
+      border-left: 4px solid var(--accent);
+      background: var(--accent-light);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      color: #4338ca;
+    }
+
+    .article-content blockquote p {
+      margin-bottom: 0.5em;
+    }
+
+    .article-content blockquote p:last-child {
+      margin-bottom: 0;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       CALLOUTS
+       ══════════════════════════════════════════════════════════════ */
+
+    .callout {
+      margin: 1.8em 0;
+      padding: 18px 22px;
+      background: var(--callout-bg);
+      border: 1px solid var(--callout-border);
+      border-radius: var(--radius-lg);
+      color: var(--callout-text);
+      font-size: 0.95em;
+      position: relative;
+    }
+
+    .callout p {
+      margin-bottom: 0.4em;
+    }
+
+    .callout p:last-child {
+      margin-bottom: 0;
+    }
+
+    .callout strong {
+      color: #15803d;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       TABLES
+       ══════════════════════════════════════════════════════════════ */
+
+    .table-wrapper {
+      margin: 1.8em 0;
+      overflow-x: auto;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    .article-content table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9em;
+    }
+
+    .article-content thead {
+      background: var(--bg-secondary);
+    }
+
+    .article-content th {
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 650;
+      color: var(--text-secondary);
+      font-size: 0.8em;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .article-content td {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border-light);
+      color: var(--text);
+    }
+
+    .article-content tr:last-child td {
+      border-bottom: none;
+    }
+
+    .article-content tbody tr:hover {
+      background: var(--bg-secondary);
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       HORIZONTAL RULES
+       ══════════════════════════════════════════════════════════════ */
+
+    .hr-wrapper {
+      margin: 48px 0;
+      text-align: center;
+    }
+
+    hr {
+      border: none;
+      height: 1px;
+      background: linear-gradient(to right, transparent, var(--border), transparent);
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       IMAGES / FIGURES
+       ══════════════════════════════════════════════════════════════ */
+
+    .article-content figure {
+      margin: 2em 0;
+      text-align: center;
+    }
+
+    .article-content figure img {
+      max-width: 100%;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .article-content figcaption {
+      margin-top: 8px;
+      font-size: 0.85em;
+      color: var(--text-tertiary);
+      font-style: italic;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       MOBILE TOC (in-content)
+       ══════════════════════════════════════════════════════════════ */
+
+    .in-content-toc {
+      display: block;
+      background: var(--toc-bg);
+      border: 1px solid var(--toc-border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin: 0 0 48px;
+    }
+
+    @media (min-width: 1400px) {
+      .in-content-toc {
+        display: none;
+      }
+    }
+
+    .in-content-toc-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-tertiary);
+      margin-bottom: 14px;
+    }
+
+    .in-content-toc ol {
+      list-style: none;
+      counter-reset: toc-counter;
+      padding: 0;
+      margin: 0;
+    }
+
+    .in-content-toc li {
+      counter-increment: toc-counter;
+      margin-bottom: 6px;
+      padding: 0;
+    }
+
+    .in-content-toc li::marker {
+      content: none;
+    }
+
+    .in-content-toc a {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 6px 10px;
+      font-size: 14px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+      border: none;
+      font-weight: 500;
+    }
+
+    .in-content-toc a::before {
+      content: counter(toc-counter);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      min-width: 20px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .in-content-toc a:hover {
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       BACK TO TOP
+       ══════════════════════════════════════════════════════════════ */
+
+    .back-to-top {
+      position: fixed;
+      bottom: 32px;
+      right: 32px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--text);
+      color: white;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: var(--shadow-md);
+      z-index: 100;
+      font-size: 18px;
+    }
+
+    .back-to-top.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .back-to-top:hover {
+      background: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       FOOTER
+       ══════════════════════════════════════════════════════════════ */
+
+    .article-footer {
+      margin-top: 80px;
+      padding-top: 32px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      color: var(--text-tertiary);
+      font-size: 14px;
+    }
+
+    .article-footer p {
+      margin-bottom: 4px;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       SCROLLBAR
+       ══════════════════════════════════════════════════════════════ */
+
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+    /* ══════════════════════════════════════════════════════════════
+       SELECTION
+       ══════════════════════════════════════════════════════════════ */
+
+    ::selection {
+      background: #d9d5ff;
+      color: var(--text);
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       RESPONSIVE
+       ══════════════════════════════════════════════════════════════ */
+
+    @media (max-width: 768px) {
+      .article-container {
+        padding: 32px 16px 80px;
+      }
+      .article-content {
+        font-size: 16px;
+      }
+      .code-block-wrapper pre {
+        padding: 16px 12px;
+      }
+      .code-block-wrapper code {
+        font-size: 12.5px;
+      }
+      .heading-anchor {
+        display: none;
+      }
+      .back-to-top {
+        bottom: 20px;
+        right: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+    <!-- Desktop TOC Sidebar -->
+    <aside class="toc-sidebar">
+      <div class="toc-sidebar-sticky">
+        <div class="toc-sidebar-title">Contents</div>
+        <nav>
+          <ul>
+    <li class="toc-item toc-level-1">
+      <a href="#ink-react-zero-to-hero">Ink + React: Zero to Hero</a>
+    </li>
+    <li class="toc-item toc-level-3">
+      <a href="#build-interactive-terminal-apps-with-react">Build Interactive Terminal Apps with React</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#table-of-contents">Table of Contents</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#1-why-does-this-exist-the-problem-before-react">1. Why Does This Exist? The Problem Before React</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#2-react-from-scratch-the-mental-model">2. React from Scratch — The Mental Model</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#3-jsx-writing-html-like-syntax-in-javascript">3. JSX — Writing HTML-like Syntax in JavaScript</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#4-components-the-lego-bricks-of-ui">4. Components — The LEGO Bricks of UI</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#5-props-passing-data-into-components">5. Props — Passing Data into Components</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#6-state-making-things-reactive">6. State — Making Things Reactive</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#7-useeffect-reacting-to-changes">7. useEffect — Reacting to Changes</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#8-how-components-talk-to-each-other">8. How Components Talk to Each Other</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#9-what-is-ink">9. What Is Ink?</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#10-setting-up-your-first-ink-project">10. Setting Up Your First Ink Project</a>
+    </li>
+    <li class="toc-item toc-level-1">
+      <a href="#create-a-new-ink-project">Create a new Ink project</a>
+    </li>
+    <li class="toc-item toc-level-1">
+      <a href="#for-typescript-recommended">For TypeScript (recommended)</a>
+    </li>
+    <li class="toc-item toc-level-1">
+      <a href="#or-if-using-the-dev-script">or if using the dev script:</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#11-inks-building-blocks-text-and-box">11. Ink's Building Blocks: Text and Box</a>
+    </li>
+    <li class="toc-item toc-level-3">
+      <a href="#-displaying-text">`` — Displaying Text</a>
+    </li>
+    <li class="toc-item toc-level-3">
+      <a href="#-layout-container">`` — Layout Container</a>
+    </li>
+    <li class="toc-item toc-level-3">
+      <a href="#-and-">`` and ``</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#12-layout-with-flexbox-in-the-terminal">12. Layout with Flexbox in the Terminal</a>
+    </li>
+    <li class="toc-item toc-level-3">
+      <a href="#direction">Direction</a>
+    </li>
+    <li class="toc-item toc-level-3">
+      <a href="#alignment">Alignment</a>
+    </li>
+    <li class="toc-item toc-level-3">
+      <a href="#flex-grow-filling-available-space">Flex Grow — Filling Available Space</a>
+    </li>
+    <li class="toc-item toc-level-3">
+      <a href="#gap-between-items">Gap Between Items</a>
+    </li>
+    <li class="toc-item toc-level-3">
+      <a href="#practical-layout-patterns">Practical Layout Patterns</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#13-handling-user-input">13. Handling User Input</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#14-focus-management">14. Focus Management</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#15-app-lifecycle-exiting-properly">15. App Lifecycle — Exiting Properly</a>
+    </li>
+    <li class="toc-item toc-level-3">
+      <a href="#using-useapp-to-exit">Using `useApp` to Exit</a>
+    </li>
+    <li class="toc-item toc-level-3">
+      <a href="#waiting-for-exit">Waiting for Exit</a>
+    </li>
+    <li class="toc-item toc-level-3">
+      <a href="#exit-with-result-or-error">Exit with Result or Error</a>
+    </li>
+    <li class="toc-item toc-level-3">
+      <a href="#ctrlc">Ctrl+C</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#16-static-output-logs-that-dont-scroll-away">16. Static Output — Logs That Don't Scroll Away</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#17-useful-community-components">17. Useful Community Components</a>
+    </li>
+    <li class="toc-item toc-level-3">
+      <a href="#ink-text-input-polished-text-input">`ink-text-input` — Polished text input</a>
+    </li>
+    <li class="toc-item toc-level-3">
+      <a href="#ink-spinner-loading-spinner">`ink-spinner` — Loading spinner</a>
+    </li>
+    <li class="toc-item toc-level-3">
+      <a href="#ink-select-input-dropdownmenu-selector">`ink-select-input` — Dropdown/menu selector</a>
+    </li>
+    <li class="toc-item toc-level-3">
+      <a href="#ink-progress-bar-progress-bar">`ink-progress-bar` — Progress bar</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#18-real-project-build-an-interactive-file-browser">18. Real Project: Build an Interactive File Browser</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#19-testing-ink-apps">19. Testing Ink Apps</a>
+    </li>
+    <li class="toc-item toc-level-2">
+      <a href="#20-whats-next">20. What's Next?</a>
+    </li></ul>
+        </nav>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="article-container">
+      <article>
+        <!-- Hero Section -->
+        <header class="article-cover">
+          <div class="article-cover-overline">Tutorial</div>
+          <h1>Ink + React:<br>Zero to Hero</h1>
+          <p class="article-cover-subtitle">Build Interactive Terminal Apps with React — from fundamentals to a real file browser project.</p>
+          <div class="article-meta">
+            <span><strong>Temicide</strong></span>
+            <span class="article-meta-dot"></span>
+            <span>24 min read</span>
+            <span class="article-meta-dot"></span>
+            <span>~4,746 words</span>
+          </div>
+        </header>
+
+        <!-- In-content TOC (mobile) -->
+        <nav class="in-content-toc">
+          <div class="in-content-toc-title">Table of Contents</div>
+          <ol><li><a href="#ink-react-zero-to-hero">Ink + React: Zero to Hero</a></li><li><a href="#build-interactive-terminal-apps-with-react">Build Interactive Terminal Apps with React</a></li><li><a href="#table-of-contents">Table of Contents</a></li><li><a href="#1-why-does-this-exist-the-problem-before-react">1. Why Does This Exist? The Problem Before React</a></li><li><a href="#2-react-from-scratch-the-mental-model">2. React from Scratch — The Mental Model</a></li><li><a href="#3-jsx-writing-html-like-syntax-in-javascript">3. JSX — Writing HTML-like Syntax in JavaScript</a></li><li><a href="#4-components-the-lego-bricks-of-ui">4. Components — The LEGO Bricks of UI</a></li><li><a href="#5-props-passing-data-into-components">5. Props — Passing Data into Components</a></li><li><a href="#6-state-making-things-reactive">6. State — Making Things Reactive</a></li><li><a href="#7-useeffect-reacting-to-changes">7. useEffect — Reacting to Changes</a></li><li><a href="#8-how-components-talk-to-each-other">8. How Components Talk to Each Other</a></li><li><a href="#9-what-is-ink">9. What Is Ink?</a></li><li><a href="#10-setting-up-your-first-ink-project">10. Setting Up Your First Ink Project</a></li><li><a href="#create-a-new-ink-project">Create a new Ink project</a></li><li><a href="#for-typescript-recommended">For TypeScript (recommended)</a></li><li><a href="#or-if-using-the-dev-script">or if using the dev script:</a></li><li><a href="#11-inks-building-blocks-text-and-box">11. Ink's Building Blocks: Text and Box</a></li><li><a href="#-displaying-text">`` — Displaying Text</a></li><li><a href="#-layout-container">`` — Layout Container</a></li><li><a href="#-and-">`` and ``</a></li><li><a href="#12-layout-with-flexbox-in-the-terminal">12. Layout with Flexbox in the Terminal</a></li><li><a href="#direction">Direction</a></li><li><a href="#alignment">Alignment</a></li><li><a href="#flex-grow-filling-available-space">Flex Grow — Filling Available Space</a></li><li><a href="#gap-between-items">Gap Between Items</a></li><li><a href="#practical-layout-patterns">Practical Layout Patterns</a></li><li><a href="#13-handling-user-input">13. Handling User Input</a></li><li><a href="#14-focus-management">14. Focus Management</a></li><li><a href="#15-app-lifecycle-exiting-properly">15. App Lifecycle — Exiting Properly</a></li><li><a href="#using-useapp-to-exit">Using `useApp` to Exit</a></li><li><a href="#waiting-for-exit">Waiting for Exit</a></li><li><a href="#exit-with-result-or-error">Exit with Result or Error</a></li><li><a href="#ctrlc">Ctrl+C</a></li><li><a href="#16-static-output-logs-that-dont-scroll-away">16. Static Output — Logs That Don't Scroll Away</a></li><li><a href="#17-useful-community-components">17. Useful Community Components</a></li><li><a href="#ink-text-input-polished-text-input">`ink-text-input` — Polished text input</a></li><li><a href="#ink-spinner-loading-spinner">`ink-spinner` — Loading spinner</a></li><li><a href="#ink-select-input-dropdownmenu-selector">`ink-select-input` — Dropdown/menu selector</a></li><li><a href="#ink-progress-bar-progress-bar">`ink-progress-bar` — Progress bar</a></li><li><a href="#18-real-project-build-an-interactive-file-browser">18. Real Project: Build an Interactive File Browser</a></li><li><a href="#19-testing-ink-apps">19. Testing Ink Apps</a></li><li><a href="#20-whats-next">20. What's Next?</a></li></ol>
+        </nav>
+
+        <!-- Rendered Content -->
+        <div class="article-content">
+          <h1 id="ink-react-zero-to-hero">
+    <a class="heading-anchor" href="#ink-react-zero-to-hero" aria-hidden="true">#</a>
+    Ink + React: Zero to Hero
+  </h1><h3 id="build-interactive-terminal-apps-with-react">
+    <a class="heading-anchor" href="#build-interactive-terminal-apps-with-react" aria-hidden="true">#</a>
+    Build Interactive Terminal Apps with React
+  </h3><div class="hr-wrapper"><hr /></div><h2 id="table-of-contents">
+    <a class="heading-anchor" href="#table-of-contents" aria-hidden="true">#</a>
+    Table of Contents
+  </h2><ol>
+<li><a href="#1-why-does-this-exist-the-problem-before-react" target="_blank" rel="noopener">Why Does This Exist? The Problem Before React</a></li>
+<li><a href="#2-react-from-scratch--the-mental-model" target="_blank" rel="noopener">React from Scratch — The Mental Model</a></li>
+<li><a href="#3-jsx--writing-html-like-syntax-in-javascript" target="_blank" rel="noopener">JSX — Writing HTML-like Syntax in JavaScript</a></li>
+<li><a href="#4-components--the-lego-bricks-of-ui" target="_blank" rel="noopener">Components — The LEGO Bricks of UI</a></li>
+<li><a href="#5-props--passing-data-into-components" target="_blank" rel="noopener">Props — Passing Data into Components</a></li>
+<li><a href="#6-state--making-things-reactive" target="_blank" rel="noopener">State — Making Things Reactive</a></li>
+<li><a href="#7-useeffect--reacting-to-changes" target="_blank" rel="noopener">useEffect — Reacting to Changes</a></li>
+<li><a href="#8-how-components-talk-to-each-other" target="_blank" rel="noopener">How Components Talk to Each Other</a></li>
+<li><a href="#9-what-is-ink" target="_blank" rel="noopener">What Is Ink?</a></li>
+<li><a href="#10-setting-up-your-first-ink-project" target="_blank" rel="noopener">Setting Up Your First Ink Project</a></li>
+<li><a href="#11-inks-building-blocks-text-and-box" target="_blank" rel="noopener">Ink's Building Blocks: Text and Box</a></li>
+<li><a href="#12-layout-with-flexbox-in-the-terminal" target="_blank" rel="noopener">Layout with Flexbox in the Terminal</a></li>
+<li><a href="#13-handling-user-input" target="_blank" rel="noopener">Handling User Input</a></li>
+<li><a href="#14-focus-management" target="_blank" rel="noopener">Focus Management</a></li>
+<li><a href="#15-app-lifecycle--exiting-properly" target="_blank" rel="noopener">App Lifecycle — Exiting Properly</a></li>
+<li><a href="#16-static-output--logs-that-dont-scroll-away" target="_blank" rel="noopener">Static Output — Logs That Don't Scroll Away</a></li>
+<li><a href="#17-useful-community-components" target="_blank" rel="noopener">Useful Community Components</a></li>
+<li><a href="#18-real-project-build-an-interactive-file-browser" target="_blank" rel="noopener">Real Project: Build an Interactive File Browser</a></li>
+<li><a href="#19-testing-ink-apps" target="_blank" rel="noopener">Testing Ink Apps</a></li>
+<li><a href="#20-whats-next" target="_blank" rel="noopener">What's Next?</a></li>
+</ol>
+<div class="hr-wrapper"><hr /></div><h2 id="1-why-does-this-exist-the-problem-before-react">
+    <a class="heading-anchor" href="#1-why-does-this-exist-the-problem-before-react" aria-hidden="true">#</a>
+    1. Why Does This Exist? The Problem Before React
+  </h2><p>Before frameworks like React existed, building any interactive UI — whether on the web or in a terminal — meant writing <strong>imperative code</strong>. That means you had to manually tell the computer <em>every single step</em>:</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">javascript</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-javascript"><span class="hljs-comment">// Old imperative way (pseudo-code)</span>
+<span class="hljs-keyword">let</span> count = <span class="hljs-number">0</span>;
+
+<span class="hljs-keyword">function</span> <span class="hljs-title function_">increment</span>(<span class="hljs-params"></span>) {
+  count++;
+  <span class="hljs-comment">// You must manually find the element and update it yourself</span>
+  <span class="hljs-variable language_">document</span>.<span class="hljs-title function_">getElementById</span>(<span class="hljs-string">&#x27;counter&#x27;</span>).<span class="hljs-property">innerText</span> = count;
+}</code></pre>
+  </div><p>The problem with this approach is: <strong>you are managing the UI manually</strong>. Every time data changes, you must remember to update every part of the screen that depends on it. This gets messy very quickly.</p><p>React&#39;s answer: <strong>describe what the UI should look like for a given state, and let React figure out how to update the screen.</strong> You stop giving step-by-step instructions. Instead, you write a &quot;template&quot; that says:</p><blockquote><p>&quot;When count is 5, the screen should show the number 5. I don&#39;t care HOW you draw it.&quot;</p></blockquote><p>This idea — describing the <em>desired result</em> instead of the <em>steps to get there</em> — is called <strong>declarative programming</strong>. It&#39;s the core philosophy of React.</p><p>Ink takes this exact same philosophy and applies it to the terminal. Instead of manually writing ANSI escape codes to move the cursor and draw characters, you write React components and Ink figures out how to paint them in the terminal.</p><div class="hr-wrapper"><hr /></div><h2 id="2-react-from-scratch-the-mental-model">
+    <a class="heading-anchor" href="#2-react-from-scratch-the-mental-model" aria-hidden="true">#</a>
+    2. React from Scratch — The Mental Model
+  </h2><p>Before writing any code, you need to understand React&#39;s core mental model. It has three layers:</p><div class="code-block-wrapper">
+    <div class="code-block-header"><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-">┌─────────────────────────────────────┐
+│            Your Components           │  ← You <span class="hljs-keyword">write</span> this
+│   <span class="hljs-symbol">&lt;App&gt;</span> → <span class="hljs-symbol">&lt;Header&gt;</span> → <span class="hljs-symbol">&lt;Button&gt;</span> ...   │
+├─────────────────────────────────────┤
+│         React Core (Reconciler)      │  ← React manages this
+│   Tracks what changed, <span class="hljs-keyword">diffs</span> trees  │
+├─────────────────────────────────────┤
+│              Renderer                │  ← Platform-specific
+│   react-dom → browser DOM           │
+│   ink       → terminal output       │
+└─────────────────────────────────────┘</code></pre>
+  </div><p><strong>The key insight:</strong> React Core doesn&#39;t know or care about the browser or the terminal. It only manages a tree of components and tracks what changed. The <em>renderer</em> (react-dom, Ink, etc.) is the one that actually draws pixels or characters.</p><p><strong>The render cycle works like this:</strong></p><ol>
+<li>You define components (functions that return a description of UI)</li>
+<li>State or props change somewhere</li>
+<li>React Core re-runs the affected components to get a new description</li>
+<li>React diffs the old description vs the new one</li>
+<li>The renderer updates only the parts that changed</li>
+</ol>
+<p>This diff-and-update step is why React is efficient. It never redraws everything from scratch.</p><div class="hr-wrapper"><hr /></div><h2 id="3-jsx-writing-html-like-syntax-in-javascript">
+    <a class="heading-anchor" href="#3-jsx-writing-html-like-syntax-in-javascript" aria-hidden="true">#</a>
+    3. JSX — Writing HTML-like Syntax in JavaScript
+  </h2><p>When you look at React code, you&#39;ll see something that looks like HTML inside JavaScript. This is called <strong>JSX</strong>.</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-comment">// This looks like HTML, but it&#x27;s JSX</span>
+<span class="hljs-keyword">const</span> element = <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;green&quot;</span>&gt;</span>Hello World<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>;</code></pre>
+  </div><p>JSX is <strong>not</strong> HTML. It&#39;s just a syntax shortcut that gets transformed into regular JavaScript function calls by a tool called Babel. Under the hood, <code class="inline-code">&lt;Text color=&quot;green&quot;&gt;Hello&lt;/Text&gt;</code> becomes:</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">javascript</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-javascript"><span class="hljs-title class_">React</span>.<span class="hljs-title function_">createElement</span>(<span class="hljs-title class_">Text</span>, { <span class="hljs-attr">color</span>: <span class="hljs-string">&quot;green&quot;</span> }, <span class="hljs-string">&quot;Hello&quot;</span>)</code></pre>
+  </div><p>You don&#39;t need to memorize this. Just know that JSX is &quot;JavaScript that looks like markup&quot; and it compiles to normal JS. The rules of JSX are slightly different from HTML:</p><ul>
+<li>All tags must be closed: <code class="inline-code">&lt;Box /&gt;</code> not <code class="inline-code">&lt;Box&gt;</code></li>
+<li><code class="inline-code">class</code> becomes <code class="inline-code">className</code> (because <code class="inline-code">class</code> is a reserved word in JS)</li>
+<li>You embed JavaScript expressions using curly braces <code class="inline-code">{}</code></li>
+<li>A component must return a single root element (use <code class="inline-code">&lt;&gt;...&lt;/&gt;</code> as an invisible wrapper if needed)</li>
+</ul>
+<div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-comment">// Embedding JS expressions in JSX</span>
+<span class="hljs-keyword">const</span> name = <span class="hljs-string">&quot;Temicide&quot;</span>;
+<span class="hljs-keyword">const</span> element = <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Hello, {name}!<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>;
+
+<span class="hljs-comment">// Using the invisible wrapper fragment</span>
+<span class="hljs-keyword">const</span> twoThings = (
+  <span class="language-xml"><span class="hljs-tag">&lt;&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>First line<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Second line<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+  <span class="hljs-tag">&lt;/&gt;</span></span>
+);</code></pre>
+  </div><div class="hr-wrapper"><hr /></div><h2 id="4-components-the-lego-bricks-of-ui">
+    <a class="heading-anchor" href="#4-components-the-lego-bricks-of-ui" aria-hidden="true">#</a>
+    4. Components — The LEGO Bricks of UI
+  </h2><p>A <strong>component</strong> in React is just a JavaScript function that returns JSX. That&#39;s it.</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-comment">// A component is a function that returns JSX</span>
+<span class="hljs-keyword">function</span> <span class="hljs-title function_">Greeting</span>(<span class="hljs-params"></span>) {
+  <span class="hljs-keyword">return</span> <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Hello, World!<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>;
+}
+
+<span class="hljs-comment">// Arrow function syntax (same thing)</span>
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">Greeting</span> = (<span class="hljs-params"></span>) =&gt; {
+  <span class="hljs-keyword">return</span> <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Hello, World!<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>;
+};
+
+<span class="hljs-comment">// If it&#x27;s just one expression, you can skip the return</span>
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">Greeting</span> = (<span class="hljs-params"></span>) =&gt; <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Hello, World!<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>;</code></pre>
+  </div><p><strong>Rules for components:</strong></p><ul>
+<li>The function name MUST start with a capital letter (<code class="inline-code">Greeting</code>, not <code class="inline-code">greeting</code>). This is how React distinguishes your components from built-in elements.</li>
+<li>A component must always return something (JSX, null, or a string).</li>
+</ul>
+<p><strong>Why break things into components?</strong> Reusability and clarity. Instead of one giant mess of JSX, you compose small, focused pieces together:</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-comment">// Each piece is its own component</span>
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">Header</span> = (<span class="hljs-params"></span>) =&gt; (
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">borderStyle</span>=<span class="hljs-string">&quot;round&quot;</span> <span class="hljs-attr">padding</span>=<span class="hljs-string">{1}</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">bold</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;cyan&quot;</span>&gt;</span>My App v1.0<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+);
+
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">StatusBar</span> = (<span class="hljs-params"></span>) =&gt; (
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;green&quot;</span>&gt;</span>● Running<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+);
+
+<span class="hljs-comment">// The App component composes them together</span>
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">App</span> = (<span class="hljs-params"></span>) =&gt; (
+  <span class="language-xml"><span class="hljs-tag">&lt;&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Header</span> /&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">StatusBar</span> /&gt;</span>
+  <span class="hljs-tag">&lt;/&gt;</span></span>
+);</code></pre>
+  </div><p>This is the <strong>component tree</strong>. <code class="inline-code">App</code> is the root, and it renders <code class="inline-code">Header</code> and <code class="inline-code">StatusBar</code> as children. This tree is what React manages internally.</p><div class="hr-wrapper"><hr /></div><h2 id="5-props-passing-data-into-components">
+    <a class="heading-anchor" href="#5-props-passing-data-into-components" aria-hidden="true">#</a>
+    5. Props — Passing Data into Components
+  </h2><p>A component that always renders the same thing is not very useful. <strong>Props</strong> (short for properties) are how you pass data <em>into</em> a component from the outside.</p><p>Think of a component like a function and props like function arguments.</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-comment">// Defining a component that accepts props</span>
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">Greeting</span> = (<span class="hljs-params">{ name, color }</span>) =&gt; (
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">color</span>=<span class="hljs-string">{color}</span>&gt;</span>Hello, {name}!<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+);
+
+<span class="hljs-comment">// Using the component with different props</span>
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">App</span> = (<span class="hljs-params"></span>) =&gt; (
+  <span class="language-xml"><span class="hljs-tag">&lt;&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Greeting</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;Temicide&quot;</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;green&quot;</span> /&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Greeting</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;Claude&quot;</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;cyan&quot;</span> /&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Greeting</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;World&quot;</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;yellow&quot;</span> /&gt;</span>
+  <span class="hljs-tag">&lt;/&gt;</span></span>
+);</code></pre>
+  </div><p>Props flow <strong>one direction only: from parent to child.</strong> A child component cannot directly modify its parent&#39;s data. This one-way data flow makes React apps predictable and easy to debug.</p><p><strong>Default props</strong> — you can set fallback values for props that aren&#39;t provided:</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">const</span> <span class="hljs-title function_">Greeting</span> = (<span class="hljs-params">{ name = <span class="hljs-string">&quot;stranger&quot;</span>, color = <span class="hljs-string">&quot;white&quot;</span> }</span>) =&gt; (
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">color</span>=<span class="hljs-string">{color}</span>&gt;</span>Hello, {name}!<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+);
+
+<span class="hljs-comment">// Works even without props</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Greeting</span> /&gt;</span></span> <span class="hljs-comment">// renders &quot;Hello, stranger!&quot; in white</span></code></pre>
+  </div><p><strong>The <code class="inline-code">children</code> prop</strong> — special prop that represents everything between your component&#39;s opening and closing tags:</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">const</span> <span class="hljs-title function_">Box</span> = (<span class="hljs-params">{ children }</span>) =&gt; (
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">borderStyle</span>=<span class="hljs-string">&quot;round&quot;</span>&gt;</span>{children}<span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+);
+
+<span class="hljs-comment">// Used like this</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>I am the children<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span></code></pre>
+  </div><div class="hr-wrapper"><hr /></div><h2 id="6-state-making-things-reactive">
+    <a class="heading-anchor" href="#6-state-making-things-reactive" aria-hidden="true">#</a>
+    6. State — Making Things Reactive
+  </h2><p>Props come from the outside. <strong>State</strong> is data that lives <em>inside</em> a component and can change over time. When state changes, React automatically re-renders the component.</p><p>State is managed with the <code class="inline-code">useState</code> hook. A <strong>hook</strong> is a special React function that starts with <code class="inline-code">use</code>. You call it inside a component.</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">import</span> { useState } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;react&#x27;</span>;
+
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">Counter</span> = (<span class="hljs-params"></span>) =&gt; {
+  <span class="hljs-comment">// useState(initialValue) returns [currentValue, setterFunction]</span>
+  <span class="hljs-keyword">const</span> [count, setCount] = <span class="hljs-title function_">useState</span>(<span class="hljs-number">0</span>);
+
+  <span class="hljs-comment">// ... rest of the component</span>
+};</code></pre>
+  </div><p><code class="inline-code">useState</code> returns an array with exactly two items:</p><ol>
+<li>The current value of the state</li>
+<li>A function to update that value (calling it triggers a re-render)</li>
+</ol>
+<p><strong>Important:</strong> You NEVER modify state directly. You always use the setter function.</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-comment">// WRONG — React won&#x27;t know this changed</span>
+count = count + <span class="hljs-number">1</span>;
+
+<span class="hljs-comment">// CORRECT — React sees this, re-renders the component</span>
+<span class="hljs-title function_">setCount</span>(count + <span class="hljs-number">1</span>);
+
+<span class="hljs-comment">// Also correct — using a function form (safer when new value depends on old)</span>
+<span class="hljs-title function_">setCount</span>(<span class="hljs-function"><span class="hljs-params">prev</span> =&gt;</span> prev + <span class="hljs-number">1</span>);</code></pre>
+  </div><p>A full counter example with Ink:</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">import</span> <span class="hljs-title class_">React</span>, { useState } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;react&#x27;</span>;
+<span class="hljs-keyword">import</span> { render, <span class="hljs-title class_">Text</span>, <span class="hljs-title class_">Box</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink&#x27;</span>;
+<span class="hljs-keyword">import</span> { useInput } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink&#x27;</span>;
+
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">Counter</span> = (<span class="hljs-params"></span>) =&gt; {
+  <span class="hljs-keyword">const</span> [count, setCount] = <span class="hljs-title function_">useState</span>(<span class="hljs-number">0</span>);
+
+  <span class="hljs-title function_">useInput</span>(<span class="hljs-function">(<span class="hljs-params">input, key</span>) =&gt;</span> {
+    <span class="hljs-keyword">if</span> (input === <span class="hljs-string">&#x27;+&#x27;</span>) <span class="hljs-title function_">setCount</span>(<span class="hljs-function"><span class="hljs-params">prev</span> =&gt;</span> prev + <span class="hljs-number">1</span>);
+    <span class="hljs-keyword">if</span> (input === <span class="hljs-string">&#x27;-&#x27;</span>) <span class="hljs-title function_">setCount</span>(<span class="hljs-function"><span class="hljs-params">prev</span> =&gt;</span> prev - <span class="hljs-number">1</span>);
+    <span class="hljs-keyword">if</span> (input === <span class="hljs-string">&#x27;r&#x27;</span>) <span class="hljs-title function_">setCount</span>(<span class="hljs-number">0</span>);
+  });
+
+  <span class="hljs-keyword">return</span> (
+    <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">flexDirection</span>=<span class="hljs-string">&quot;column&quot;</span> <span class="hljs-attr">padding</span>=<span class="hljs-string">{1}</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Count: <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;green&quot;</span> <span class="hljs-attr">bold</span>&gt;</span>{count}<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">dimColor</span>&gt;</span>Press + to increment, - to decrement, r to reset<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+  );
+};
+
+<span class="hljs-title function_">render</span>(<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Counter</span> /&gt;</span></span>);</code></pre>
+  </div><div class="hr-wrapper"><hr /></div><h2 id="7-useeffect-reacting-to-changes">
+    <a class="heading-anchor" href="#7-useeffect-reacting-to-changes" aria-hidden="true">#</a>
+    7. useEffect — Reacting to Changes
+  </h2><p><code class="inline-code">useEffect</code> lets you run side effects — things that happen <em>as a consequence</em> of renders. Common use cases: timers, subscriptions, fetching data, cleaning up resources.</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">import</span> { useState, useEffect } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;react&#x27;</span>;
+
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">Timer</span> = (<span class="hljs-params"></span>) =&gt; {
+  <span class="hljs-keyword">const</span> [seconds, setSeconds] = <span class="hljs-title function_">useState</span>(<span class="hljs-number">0</span>);
+
+  <span class="hljs-title function_">useEffect</span>(<span class="hljs-function">() =&gt;</span> {
+    <span class="hljs-comment">// This code runs after the component renders</span>
+    <span class="hljs-keyword">const</span> interval = <span class="hljs-built_in">setInterval</span>(<span class="hljs-function">() =&gt;</span> {
+      <span class="hljs-title function_">setSeconds</span>(<span class="hljs-function"><span class="hljs-params">prev</span> =&gt;</span> prev + <span class="hljs-number">1</span>);
+    }, <span class="hljs-number">1000</span>);
+
+    <span class="hljs-comment">// The return function is a CLEANUP function</span>
+    <span class="hljs-comment">// React calls it when the component is removed from the tree</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-function">() =&gt;</span> <span class="hljs-built_in">clearInterval</span>(interval);
+  }, []); <span class="hljs-comment">// The [] means &quot;run this effect only once, on mount&quot;</span>
+
+  <span class="hljs-keyword">return</span> <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Elapsed: {seconds}s<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>;
+};</code></pre>
+  </div><p>The second argument to <code class="inline-code">useEffect</code> is the <strong>dependency array</strong>. It controls WHEN the effect re-runs:</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-comment">// Runs after EVERY render (no dependency array)</span>
+<span class="hljs-title function_">useEffect</span>(<span class="hljs-function">() =&gt;</span> { ... });
+
+<span class="hljs-comment">// Runs ONCE when the component first appears (empty array)</span>
+<span class="hljs-title function_">useEffect</span>(<span class="hljs-function">() =&gt;</span> { ... }, []);
+
+<span class="hljs-comment">// Runs whenever `name` or `count` changes</span>
+<span class="hljs-title function_">useEffect</span>(<span class="hljs-function">() =&gt;</span> { ... }, [name, count]);</code></pre>
+  </div><div class="hr-wrapper"><hr /></div><h2 id="8-how-components-talk-to-each-other">
+    <a class="heading-anchor" href="#8-how-components-talk-to-each-other" aria-hidden="true">#</a>
+    8. How Components Talk to Each Other
+  </h2><p>Now the big picture: how do multiple components share and exchange data?</p><p><strong>Parent → Child: Props</strong></p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">const</span> <span class="hljs-title function_">Parent</span> = (<span class="hljs-params"></span>) =&gt; {
+  <span class="hljs-keyword">const</span> [name] = <span class="hljs-title function_">useState</span>(<span class="hljs-string">&quot;Temicide&quot;</span>);
+  <span class="hljs-keyword">return</span> <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Child</span> <span class="hljs-attr">name</span>=<span class="hljs-string">{name}</span> /&gt;</span></span>;
+};
+
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">Child</span> = (<span class="hljs-params">{ name }</span>) =&gt; <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Hello, {name}<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>;</code></pre>
+  </div><p><strong>Child → Parent: Callback functions passed as props</strong></p><p>The parent passes a function down as a prop. The child calls that function when something happens. This is called &quot;lifting state up.&quot;</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">const</span> <span class="hljs-title function_">Parent</span> = (<span class="hljs-params"></span>) =&gt; {
+  <span class="hljs-keyword">const</span> [message, setMessage] = <span class="hljs-title function_">useState</span>(<span class="hljs-string">&quot;waiting...&quot;</span>);
+
+  <span class="hljs-comment">// This function will be called by the child</span>
+  <span class="hljs-keyword">const</span> <span class="hljs-title function_">handleInput</span> = (<span class="hljs-params">text</span>) =&gt; {
+    <span class="hljs-title function_">setMessage</span>(text);
+  };
+
+  <span class="hljs-keyword">return</span> (
+    <span class="language-xml"><span class="hljs-tag">&lt;&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Message received: {message}<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">ChildInput</span> <span class="hljs-attr">onSubmit</span>=<span class="hljs-string">{handleInput}</span> /&gt;</span>
+    <span class="hljs-tag">&lt;/&gt;</span></span>
+  );
+};
+
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">ChildInput</span> = (<span class="hljs-params">{ onSubmit }</span>) =&gt; {
+  <span class="hljs-title function_">useInput</span>(<span class="hljs-function">(<span class="hljs-params">input</span>) =&gt;</span> {
+    <span class="hljs-keyword">if</span> (input === <span class="hljs-string">&#x27;h&#x27;</span>) <span class="hljs-title function_">onSubmit</span>(<span class="hljs-string">&quot;Hello from the child!&quot;</span>);
+  });
+  <span class="hljs-keyword">return</span> <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">dimColor</span>&gt;</span>Press h to send a message up<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>;
+};</code></pre>
+  </div><p><strong>Sibling → Sibling: Lift state to the common parent</strong></p><p>If two siblings need to share state, move that state into their parent and pass it down to both.</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">const</span> <span class="hljs-title function_">App</span> = (<span class="hljs-params"></span>) =&gt; {
+  <span class="hljs-keyword">const</span> [selected, setSelected] = <span class="hljs-title function_">useState</span>(<span class="hljs-number">0</span>);
+  <span class="hljs-keyword">return</span> (
+    <span class="language-xml"><span class="hljs-tag">&lt;&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Menu</span> <span class="hljs-attr">onSelect</span>=<span class="hljs-string">{setSelected}</span> /&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Content</span> <span class="hljs-attr">selectedIndex</span>=<span class="hljs-string">{selected}</span> /&gt;</span>
+    <span class="hljs-tag">&lt;/&gt;</span></span>
+  );
+};</code></pre>
+  </div><div class="hr-wrapper"><hr /></div><h2 id="9-what-is-ink">
+    <a class="heading-anchor" href="#9-what-is-ink" aria-hidden="true">#</a>
+    9. What Is Ink?
+  </h2><p>Now that you understand React, Ink is simple: it&#39;s a <strong>React renderer that targets the terminal instead of the browser.</strong></p><ul>
+<li>It replaces <code class="inline-code">react-dom</code> with its own renderer</li>
+<li>It uses <strong>Yoga</strong> (Facebook&#39;s Flexbox engine) for layout, so you get real Flexbox in the terminal</li>
+<li>It provides terminal-specific components (<code class="inline-code">&lt;Text&gt;</code>, <code class="inline-code">&lt;Box&gt;</code>) and hooks (<code class="inline-code">useInput</code>, <code class="inline-code">useFocus</code>, etc.)</li>
+<li>All standard React features work: <code class="inline-code">useState</code>, <code class="inline-code">useEffect</code>, Context, Suspense, everything</li>
+</ul>
+<p>The result: you write components the exact same way you would for a web app, and they appear in the terminal.</p><p><strong>Notable real-world users:</strong> Claude Code (Anthropic), Gemini CLI (Google), GitHub Copilot CLI, Cloudflare Wrangler, Gatsby, Prisma, Shopify CLI.</p><div class="hr-wrapper"><hr /></div><h2 id="10-setting-up-your-first-ink-project">
+    <a class="heading-anchor" href="#10-setting-up-your-first-ink-project" aria-hidden="true">#</a>
+    10. Setting Up Your First Ink Project
+  </h2><p>The fastest way to start is with the official scaffolding tool:</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-bash"><span class="hljs-comment"># Create a new Ink project</span>
+npx create-ink-app my-cli
+
+<span class="hljs-comment"># For TypeScript (recommended)</span>
+npx create-ink-app --typescript my-cli
+
+<span class="hljs-built_in">cd</span> my-cli</code></pre>
+  </div><p>This sets up Node.js, Babel (JSX transpiler), and Ink with the correct configuration. The entry file will look like:</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-comment">// source/app.jsx (or app.tsx)</span>
+<span class="hljs-keyword">import</span> <span class="hljs-title class_">React</span> <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;react&#x27;</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title class_">Text</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink&#x27;</span>;
+
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">App</span> = (<span class="hljs-params">{ name = <span class="hljs-string">&#x27;Stranger&#x27;</span> }</span>) =&gt; (
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>
+    Hello, <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;green&quot;</span>&gt;</span>{name}<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+);
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-title class_">App</span>;</code></pre>
+  </div><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">javascript</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-javascript"><span class="hljs-comment">// cli.js — the entry point</span>
+<span class="hljs-keyword">import</span> <span class="hljs-title class_">React</span> <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;react&#x27;</span>;
+<span class="hljs-keyword">import</span> { render } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink&#x27;</span>;
+<span class="hljs-keyword">import</span> <span class="hljs-title class_">App</span> <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;./source/app.js&#x27;</span>;
+
+<span class="hljs-title function_">render</span>(<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">App</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;Temicide&quot;</span> /&gt;</span></span>);</code></pre>
+  </div><p><strong>Run it:</strong></p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-bash">node cli.js
+<span class="hljs-comment"># or if using the dev script:</span>
+npm start</code></pre>
+  </div><p><strong>Manual setup (without create-ink-app):</strong></p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-bash"><span class="hljs-built_in">mkdir</span> my-cli &amp;&amp; <span class="hljs-built_in">cd</span> my-cli
+npm init -y
+npm install ink react
+npm install --save-dev @babel/core @babel/preset-react babel-node</code></pre>
+  </div><p>Create <code class="inline-code">babel.config.json</code>:</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">json</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;presets&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">&quot;@babel/preset-react&quot;</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span></code></pre>
+  </div><div class="hr-wrapper"><hr /></div><h2 id="11-inks-building-blocks-text-and-box">
+    <a class="heading-anchor" href="#11-inks-building-blocks-text-and-box" aria-hidden="true">#</a>
+    11. Ink's Building Blocks: Text and Box
+  </h2><p>Ink has only two core layout primitives: <code class="inline-code">&lt;Text&gt;</code> and <code class="inline-code">&lt;Box&gt;</code>.</p><h3 id="-displaying-text">
+    <a class="heading-anchor" href="#-displaying-text" aria-hidden="true">#</a>
+    `<Text>` — Displaying Text
+  </h3><p>All text in Ink MUST be inside a <code class="inline-code">&lt;Text&gt;</code> component. You cannot put raw text directly inside a <code class="inline-code">&lt;Box&gt;</code>.</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">import</span> { <span class="hljs-title class_">Text</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink&#x27;</span>;
+
+<span class="hljs-comment">// Basic text</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Hello World<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+
+<span class="hljs-comment">// Colors — supports named colors, hex, and rgb</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;green&quot;</span>&gt;</span>Green text<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;#ff6b6b&quot;</span>&gt;</span>Hex color<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;rgb(100, 200, 150)&quot;</span>&gt;</span>RGB color<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+
+<span class="hljs-comment">// Background color</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">backgroundColor</span>=<span class="hljs-string">&quot;blue&quot;</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;white&quot;</span>&gt;</span>White on Blue<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+
+<span class="hljs-comment">// Styling</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">bold</span>&gt;</span>Bold text<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">italic</span>&gt;</span>Italic text<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">underline</span>&gt;</span>Underlined text<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">strikethrough</span>&gt;</span>Strikethrough<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">dimColor</span>&gt;</span>Dimmed (subtle) text<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+
+<span class="hljs-comment">// Inverse (swap foreground/background)</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">inverse</span>&gt;</span>Inverted colors<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+
+<span class="hljs-comment">// Text wrapping behavior</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">width</span>=<span class="hljs-string">{20}</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">wrap</span>=<span class="hljs-string">&quot;wrap&quot;</span>&gt;</span>This will wrap to next line if too long<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">wrap</span>=<span class="hljs-string">&quot;truncate&quot;</span>&gt;</span>This will be cut off with…<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">wrap</span>=<span class="hljs-string">&quot;truncate-middle&quot;</span>&gt;</span>He…ld<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+
+<span class="hljs-comment">// Nesting Text components</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>
+  Normal text with <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;cyan&quot;</span> <span class="hljs-attr">bold</span>&gt;</span>cyan bold<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span> inside
+<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span></code></pre>
+  </div><h3 id="-layout-container">
+    <a class="heading-anchor" href="#-layout-container" aria-hidden="true">#</a>
+    `<Box>` — Layout Container
+  </h3><p><code class="inline-code">&lt;Box&gt;</code> is like a <code class="inline-code">&lt;div style=&quot;display: flex&quot;&gt;</code> in the browser. Every <code class="inline-code">&lt;Box&gt;</code> is a Flexbox container by default.</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">import</span> { <span class="hljs-title class_">Box</span>, <span class="hljs-title class_">Text</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink&#x27;</span>;
+
+<span class="hljs-comment">// Basic box with padding</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">padding</span>=<span class="hljs-string">{1}</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Padded content<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+
+<span class="hljs-comment">// Box with border</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">borderStyle</span>=<span class="hljs-string">&quot;round&quot;</span> <span class="hljs-attr">padding</span>=<span class="hljs-string">{1}</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>I have a rounded border<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+
+<span class="hljs-comment">// Border styles: single, double, round, bold, singleDouble, doubleSingle, classic</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">borderStyle</span>=<span class="hljs-string">&quot;single&quot;</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>single<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">borderStyle</span>=<span class="hljs-string">&quot;double&quot;</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>double<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">borderStyle</span>=<span class="hljs-string">&quot;bold&quot;</span> <span class="hljs-attr">borderColor</span>=<span class="hljs-string">&quot;red&quot;</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>bold red border<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+
+<span class="hljs-comment">// Dimensions</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">width</span>=<span class="hljs-string">{40}</span> <span class="hljs-attr">height</span>=<span class="hljs-string">{5}</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Fixed size box<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+
+<span class="hljs-comment">// Percentage widths</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">width</span>=<span class="hljs-string">&quot;50%&quot;</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Half width<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+
+<span class="hljs-comment">// Margin</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">marginTop</span>=<span class="hljs-string">{1}</span> <span class="hljs-attr">marginBottom</span>=<span class="hljs-string">{1}</span> <span class="hljs-attr">marginLeft</span>=<span class="hljs-string">{2}</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Box with margin<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+
+<span class="hljs-comment">// Shorthand padding/margin</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">padding</span>=<span class="hljs-string">{2}</span>&gt;</span>...<span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>       <span class="hljs-comment">// all sides</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">paddingX</span>=<span class="hljs-string">{2}</span>&gt;</span>...<span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>      <span class="hljs-comment">// left and right</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">paddingY</span>=<span class="hljs-string">{1}</span>&gt;</span>...<span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>      <span class="hljs-comment">// top and bottom</span>
+
+<span class="hljs-comment">// Hide element</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">display</span>=<span class="hljs-string">&quot;none&quot;</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>This won&#x27;t show<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span></code></pre>
+  </div><h3 id="-and-">
+    <a class="heading-anchor" href="#-and-" aria-hidden="true">#</a>
+    `<Newline>` and `<Spacer>`
+  </h3><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">import</span> { <span class="hljs-title class_">Text</span>, <span class="hljs-title class_">Newline</span>, <span class="hljs-title class_">Spacer</span>, <span class="hljs-title class_">Box</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink&#x27;</span>;
+
+<span class="hljs-comment">// Newline inside Text</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>
+  Line one
+  <span class="hljs-tag">&lt;<span class="hljs-name">Newline</span> /&gt;</span>
+  Line two
+  <span class="hljs-tag">&lt;<span class="hljs-name">Newline</span> <span class="hljs-attr">count</span>=<span class="hljs-string">{2}</span> /&gt;</span>
+  Line four (skipped three)
+<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+
+<span class="hljs-comment">// Spacer — pushes items to opposite ends</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Left<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">Spacer</span> /&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Right<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+<span class="hljs-comment">// Output: Left                Right</span></code></pre>
+  </div><div class="hr-wrapper"><hr /></div><h2 id="12-layout-with-flexbox-in-the-terminal">
+    <a class="heading-anchor" href="#12-layout-with-flexbox-in-the-terminal" aria-hidden="true">#</a>
+    12. Layout with Flexbox in the Terminal
+  </h2><p>Since every <code class="inline-code">&lt;Box&gt;</code> is a Flexbox container, you get the full Flexbox model in your terminal.</p><h3 id="direction">
+    <a class="heading-anchor" href="#direction" aria-hidden="true">#</a>
+    Direction
+  </h3><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-comment">// Row (default) — children side by side horizontally</span>
+&lt;<span class="hljs-title class_">Box</span> flexDirection=<span class="hljs-string">&quot;row&quot;</span>&gt;
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>A<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>B<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>C<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+&lt;/<span class="hljs-title class_">Box</span>&gt;
+<span class="hljs-comment">// A B C</span>
+
+<span class="hljs-comment">// Column — children stacked vertically</span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">flexDirection</span>=<span class="hljs-string">&quot;column&quot;</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>A<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>B<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>C<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+<span class="hljs-comment">// A</span>
+<span class="hljs-comment">// B</span>
+<span class="hljs-comment">// C</span></code></pre>
+  </div><h3 id="alignment">
+    <a class="heading-anchor" href="#alignment" aria-hidden="true">#</a>
+    Alignment
+  </h3><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-comment">// justifyContent controls main axis (horizontal in row, vertical in column)</span>
+&lt;<span class="hljs-title class_">Box</span> justifyContent=<span class="hljs-string">&quot;flex-start&quot;</span>&gt;<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>X<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>&lt;<span class="hljs-regexp">/Box&gt;  /</span>/ [X      ]
+&lt;<span class="hljs-title class_">Box</span> justifyContent=<span class="hljs-string">&quot;center&quot;</span>&gt;<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>X<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>&lt;<span class="hljs-regexp">/Box&gt;      /</span>/ [   X   ]
+&lt;<span class="hljs-title class_">Box</span> justifyContent=<span class="hljs-string">&quot;flex-end&quot;</span>&gt;<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>X<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>&lt;<span class="hljs-regexp">/Box&gt;    /</span>/ [      X]
+&lt;<span class="hljs-title class_">Box</span> justifyContent=<span class="hljs-string">&quot;space-between&quot;</span>&gt;
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>A<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span><span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>B<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+&lt;<span class="hljs-regexp">/Box&gt;  /</span>/ [A      B]
+
+<span class="hljs-comment">// alignItems controls cross axis</span>
+&lt;<span class="hljs-title class_">Box</span> alignItems=<span class="hljs-string">&quot;flex-start&quot;</span>&gt;...&lt;/<span class="hljs-title class_">Box</span>&gt;
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">alignItems</span>=<span class="hljs-string">&quot;center&quot;</span>&gt;</span>...<span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">alignItems</span>=<span class="hljs-string">&quot;flex-end&quot;</span>&gt;</span>...<span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span></code></pre>
+  </div><h3 id="flex-grow-filling-available-space">
+    <a class="heading-anchor" href="#flex-grow-filling-available-space" aria-hidden="true">#</a>
+    Flex Grow — Filling Available Space
+  </h3><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-comment">// Without flexGrow — elements only take up the space they need</span>
+&lt;<span class="hljs-title class_">Box</span>&gt;
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Label: <span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">flexGrow</span>=<span class="hljs-string">{1}</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>This box fills all remaining space<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+&lt;/<span class="hljs-title class_">Box</span>&gt;</code></pre>
+  </div><h3 id="gap-between-items">
+    <a class="heading-anchor" href="#gap-between-items" aria-hidden="true">#</a>
+    Gap Between Items
+  </h3><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx">&lt;<span class="hljs-title class_">Box</span> gap={<span class="hljs-number">1</span>}&gt;
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>A<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>B<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>C<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>
+&lt;/<span class="hljs-title class_">Box</span>&gt;
+<span class="hljs-comment">// A  B  C  (1 space gap between items)</span></code></pre>
+  </div><h3 id="practical-layout-patterns">
+    <a class="heading-anchor" href="#practical-layout-patterns" aria-hidden="true">#</a>
+    Practical Layout Patterns
+  </h3><p><strong>Two-column layout:</strong></p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">const</span> <span class="hljs-title function_">TwoColumn</span> = (<span class="hljs-params"></span>) =&gt; (
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">width</span>=<span class="hljs-string">&quot;30%&quot;</span> <span class="hljs-attr">borderStyle</span>=<span class="hljs-string">&quot;single&quot;</span> <span class="hljs-attr">padding</span>=<span class="hljs-string">{1}</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">bold</span>&gt;</span>Sidebar<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">flexGrow</span>=<span class="hljs-string">{1}</span> <span class="hljs-attr">padding</span>=<span class="hljs-string">{1}</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Main content area<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+);</code></pre>
+  </div><p><strong>Header + Content + Footer:</strong></p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">const</span> <span class="hljs-title function_">Layout</span> = (<span class="hljs-params"></span>) =&gt; (
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">flexDirection</span>=<span class="hljs-string">&quot;column&quot;</span> <span class="hljs-attr">height</span>=<span class="hljs-string">{20}</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">borderStyle</span>=<span class="hljs-string">&quot;single&quot;</span> <span class="hljs-attr">paddingX</span>=<span class="hljs-string">{1}</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">bold</span>&gt;</span>My App<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">flexGrow</span>=<span class="hljs-string">{1}</span> <span class="hljs-attr">padding</span>=<span class="hljs-string">{1}</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Content here...<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">borderStyle</span>=<span class="hljs-string">&quot;single&quot;</span> <span class="hljs-attr">paddingX</span>=<span class="hljs-string">{1}</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">dimColor</span>&gt;</span>Press q to quit<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+);</code></pre>
+  </div><p><strong>Centered content:</strong></p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">const</span> <span class="hljs-title function_">Centered</span> = (<span class="hljs-params"></span>) =&gt; (
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">justifyContent</span>=<span class="hljs-string">&quot;center&quot;</span> <span class="hljs-attr">alignItems</span>=<span class="hljs-string">&quot;center&quot;</span> <span class="hljs-attr">height</span>=<span class="hljs-string">{10}</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>I am centered!<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+);</code></pre>
+  </div><div class="hr-wrapper"><hr /></div><h2 id="13-handling-user-input">
+    <a class="heading-anchor" href="#13-handling-user-input" aria-hidden="true">#</a>
+    13. Handling User Input
+  </h2><p>The <code class="inline-code">useInput</code> hook is how you listen to keyboard events. It calls your handler function every time the user presses a key.</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">import</span> { useInput } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink&#x27;</span>;
+
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">MyComponent</span> = (<span class="hljs-params"></span>) =&gt; {
+  <span class="hljs-title function_">useInput</span>(<span class="hljs-function">(<span class="hljs-params">input, key</span>) =&gt;</span> {
+    <span class="hljs-comment">// `input` is the character string the user typed</span>
+    <span class="hljs-comment">// `key` is an object with boolean flags for special keys</span>
+
+    <span class="hljs-keyword">if</span> (input === <span class="hljs-string">&#x27;q&#x27;</span>) {
+      <span class="hljs-comment">// User pressed &#x27;q&#x27;</span>
+    }
+
+    <span class="hljs-keyword">if</span> (key.<span class="hljs-property">upArrow</span>) {
+      <span class="hljs-comment">// User pressed the up arrow key</span>
+    }
+
+    <span class="hljs-keyword">if</span> (key.<span class="hljs-property">return</span>) {
+      <span class="hljs-comment">// User pressed Enter</span>
+    }
+
+    <span class="hljs-keyword">if</span> (key.<span class="hljs-property">ctrl</span> &amp;&amp; input === <span class="hljs-string">&#x27;c&#x27;</span>) {
+      <span class="hljs-comment">// User pressed Ctrl+C</span>
+    }
+  });
+
+  <span class="hljs-keyword">return</span> <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Listening for input...<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>;
+};</code></pre>
+  </div><p><strong>All available key flags:</strong></p><div class="table-wrapper"><table>
+    <thead><tr><th>Flag</th><th>Key</th></tr></thead>
+    <tbody><tr><td>`key.upArrow`</td><td>↑ Arrow</td></tr><tr><td>`key.downArrow`</td><td>↓ Arrow</td></tr><tr><td>`key.leftArrow`</td><td>← Arrow</td></tr><tr><td>`key.rightArrow`</td><td>→ Arrow</td></tr><tr><td>`key.return`</td><td>Enter</td></tr><tr><td>`key.escape`</td><td>Escape</td></tr><tr><td>`key.ctrl`</td><td>Ctrl (combined with input)</td></tr><tr><td>`key.shift`</td><td>Shift</td></tr><tr><td>`key.tab`</td><td>Tab</td></tr><tr><td>`key.backspace`</td><td>Backspace</td></tr><tr><td>`key.delete`</td><td>Delete</td></tr><tr><td>`key.pageUp`</td><td>Page Up</td></tr><tr><td>`key.pageDown`</td><td>Page Down</td></tr><tr><td>`key.home`</td><td>Home</td></tr><tr><td>`key.end`</td><td>End</td></tr><tr><td>`key.meta`</td><td>Meta/Alt key</td></tr></tbody>
+  </table></div><p><strong>Text input example — building a simple prompt:</strong></p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">import</span> <span class="hljs-title class_">React</span>, { useState } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;react&#x27;</span>;
+<span class="hljs-keyword">import</span> { render, <span class="hljs-title class_">Text</span>, <span class="hljs-title class_">Box</span>, useInput } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink&#x27;</span>;
+
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">Prompt</span> = (<span class="hljs-params"></span>) =&gt; {
+  <span class="hljs-keyword">const</span> [input, setInput] = <span class="hljs-title function_">useState</span>(<span class="hljs-string">&#x27;&#x27;</span>);
+  <span class="hljs-keyword">const</span> [submitted, setSubmitted] = <span class="hljs-title function_">useState</span>(<span class="hljs-string">&#x27;&#x27;</span>);
+
+  <span class="hljs-title function_">useInput</span>(<span class="hljs-function">(<span class="hljs-params">char, key</span>) =&gt;</span> {
+    <span class="hljs-keyword">if</span> (key.<span class="hljs-property">return</span>) {
+      <span class="hljs-title function_">setSubmitted</span>(input);
+      <span class="hljs-title function_">setInput</span>(<span class="hljs-string">&#x27;&#x27;</span>);
+    } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (key.<span class="hljs-property">backspace</span> || key.<span class="hljs-property">delete</span>) {
+      <span class="hljs-title function_">setInput</span>(<span class="hljs-function"><span class="hljs-params">prev</span> =&gt;</span> prev.<span class="hljs-title function_">slice</span>(<span class="hljs-number">0</span>, -<span class="hljs-number">1</span>));
+    } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (char &amp;&amp; !key.<span class="hljs-property">ctrl</span> &amp;&amp; !key.<span class="hljs-property">meta</span>) {
+      <span class="hljs-title function_">setInput</span>(<span class="hljs-function"><span class="hljs-params">prev</span> =&gt;</span> prev + char);
+    }
+  });
+
+  <span class="hljs-keyword">return</span> (
+    <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">flexDirection</span>=<span class="hljs-string">&quot;column&quot;</span> <span class="hljs-attr">padding</span>=<span class="hljs-string">{1}</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Box</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;cyan&quot;</span>&gt;</span>› <span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>{input}<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">inverse</span>&gt;</span> <span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+      <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span>
+      {submitted &amp;&amp; (
+        <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;green&quot;</span>&gt;</span>You typed: {submitted}<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+      )}
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+  );
+};
+
+<span class="hljs-title function_">render</span>(<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Prompt</span> /&gt;</span></span>);</code></pre>
+  </div><blockquote><p><strong>Tip:</strong> The community <code class="inline-code">ink-text-input</code> package gives you a polished text input component out of the box. Install it with <code class="inline-code">npm install ink-text-input</code>.</p></blockquote><p><strong>Paste handling with <code class="inline-code">usePaste</code>:</strong></p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">import</span> { usePaste } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink&#x27;</span>;
+
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">PasteDemo</span> = (<span class="hljs-params"></span>) =&gt; {
+  <span class="hljs-keyword">const</span> [pasted, setPasted] = <span class="hljs-title function_">useState</span>(<span class="hljs-string">&#x27;&#x27;</span>);
+
+  <span class="hljs-title function_">usePaste</span>(<span class="hljs-function">(<span class="hljs-params">text</span>) =&gt;</span> {
+    <span class="hljs-title function_">setPasted</span>(text);
+  });
+
+  <span class="hljs-keyword">return</span> <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Pasted: {pasted}<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>;
+};</code></pre>
+  </div><div class="hr-wrapper"><hr /></div><h2 id="14-focus-management">
+    <a class="heading-anchor" href="#14-focus-management" aria-hidden="true">#</a>
+    14. Focus Management
+  </h2><p>When you have multiple interactive areas, you need to track which one is currently focused. Ink handles this automatically via Tab key cycling.</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">import</span> { useFocus, useFocusManager, useInput } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink&#x27;</span>;
+
+<span class="hljs-comment">// A focusable input field</span>
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">InputField</span> = (<span class="hljs-params">{ label }</span>) =&gt; {
+  <span class="hljs-keyword">const</span> { isFocused } = <span class="hljs-title function_">useFocus</span>();
+
+  <span class="hljs-keyword">return</span> (
+    <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">color</span>=<span class="hljs-string">{isFocused</span> ? &#x27;<span class="hljs-attr">cyan</span>&#x27; <span class="hljs-attr">:</span> &#x27;<span class="hljs-attr">white</span>&#x27;}&gt;</span>
+        {isFocused ? &#x27;› &#x27; : &#x27;  &#x27;}
+        {label}:
+      <span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Box</span>
+        <span class="hljs-attr">borderStyle</span>=<span class="hljs-string">&quot;single&quot;</span>
+        <span class="hljs-attr">borderColor</span>=<span class="hljs-string">{isFocused</span> ? &#x27;<span class="hljs-attr">cyan</span>&#x27; <span class="hljs-attr">:</span> &#x27;<span class="hljs-attr">gray</span>&#x27;}
+        <span class="hljs-attr">paddingX</span>=<span class="hljs-string">{1}</span>
+        <span class="hljs-attr">width</span>=<span class="hljs-string">{20}</span>
+      &gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>{isFocused ? &#x27;typing...&#x27; : &#x27;press tab&#x27;}<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+      <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+  );
+};
+
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">Form</span> = (<span class="hljs-params"></span>) =&gt; {
+  <span class="hljs-keyword">return</span> (
+    <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">flexDirection</span>=<span class="hljs-string">&quot;column&quot;</span> <span class="hljs-attr">gap</span>=<span class="hljs-string">{1}</span> <span class="hljs-attr">padding</span>=<span class="hljs-string">{1}</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">bold</span>&gt;</span>Registration Form<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">InputField</span> <span class="hljs-attr">label</span>=<span class="hljs-string">&quot;Name&quot;</span> /&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">InputField</span> <span class="hljs-attr">label</span>=<span class="hljs-string">&quot;Email&quot;</span> /&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">InputField</span> <span class="hljs-attr">label</span>=<span class="hljs-string">&quot;Password&quot;</span> /&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">dimColor</span>&gt;</span>Tab to move between fields<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+  );
+};</code></pre>
+  </div><p><strong>Programmatic focus control:</strong></p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">const</span> <span class="hljs-title function_">Menu</span> = (<span class="hljs-params"></span>) =&gt; {
+  <span class="hljs-keyword">const</span> { focusNext, focusPrevious, focus } = <span class="hljs-title function_">useFocusManager</span>();
+
+  <span class="hljs-title function_">useInput</span>(<span class="hljs-function">(<span class="hljs-params">input, key</span>) =&gt;</span> {
+    <span class="hljs-keyword">if</span> (key.<span class="hljs-property">downArrow</span>) <span class="hljs-title function_">focusNext</span>();
+    <span class="hljs-keyword">if</span> (key.<span class="hljs-property">upArrow</span>) <span class="hljs-title function_">focusPrevious</span>();
+    <span class="hljs-keyword">if</span> (input === <span class="hljs-string">&#x27;h&#x27;</span>) <span class="hljs-title function_">focus</span>(<span class="hljs-string">&#x27;help-button&#x27;</span>); <span class="hljs-comment">// Focus by ID</span>
+  });
+
+  <span class="hljs-keyword">return</span> (
+    <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">flexDirection</span>=<span class="hljs-string">&quot;column&quot;</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">MenuItem</span> <span class="hljs-attr">id</span>=<span class="hljs-string">&quot;file&quot;</span> <span class="hljs-attr">label</span>=<span class="hljs-string">&quot;File&quot;</span> /&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">MenuItem</span> <span class="hljs-attr">id</span>=<span class="hljs-string">&quot;edit&quot;</span> <span class="hljs-attr">label</span>=<span class="hljs-string">&quot;Edit&quot;</span> /&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">MenuItem</span> <span class="hljs-attr">id</span>=<span class="hljs-string">&quot;help-button&quot;</span> <span class="hljs-attr">label</span>=<span class="hljs-string">&quot;Help&quot;</span> /&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+  );
+};</code></pre>
+  </div><div class="hr-wrapper"><hr /></div><h2 id="15-app-lifecycle-exiting-properly">
+    <a class="heading-anchor" href="#15-app-lifecycle-exiting-properly" aria-hidden="true">#</a>
+    15. App Lifecycle — Exiting Properly
+  </h2><p>An Ink app is a Node.js process that stays alive as long as there&#39;s active work (timers, input listeners, etc.). You need to explicitly tell it when to quit.</p><h3 id="using-useapp-to-exit">
+    <a class="heading-anchor" href="#using-useapp-to-exit" aria-hidden="true">#</a>
+    Using `useApp` to Exit
+  </h3><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">import</span> { useApp } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink&#x27;</span>;
+
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">App</span> = (<span class="hljs-params"></span>) =&gt; {
+  <span class="hljs-keyword">const</span> { exit } = <span class="hljs-title function_">useApp</span>();
+
+  <span class="hljs-title function_">useInput</span>(<span class="hljs-function">(<span class="hljs-params">input</span>) =&gt;</span> {
+    <span class="hljs-keyword">if</span> (input === <span class="hljs-string">&#x27;q&#x27;</span>) {
+      <span class="hljs-title function_">exit</span>(); <span class="hljs-comment">// Cleanly unmounts the app and exits</span>
+    }
+  });
+
+  <span class="hljs-keyword">return</span> <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Press q to quit<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>;
+};</code></pre>
+  </div><h3 id="waiting-for-exit">
+    <a class="heading-anchor" href="#waiting-for-exit" aria-hidden="true">#</a>
+    Waiting for Exit
+  </h3><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">import</span> { render } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink&#x27;</span>;
+<span class="hljs-keyword">import</span> <span class="hljs-title class_">App</span> <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;./App.js&#x27;</span>;
+
+<span class="hljs-keyword">const</span> { waitUntilExit } = <span class="hljs-title function_">render</span>(<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">App</span> /&gt;</span></span>);
+
+<span class="hljs-comment">// This promise resolves when the app unmounts</span>
+<span class="hljs-keyword">await</span> <span class="hljs-title function_">waitUntilExit</span>();
+<span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;App has exited cleanly&#x27;</span>);</code></pre>
+  </div><h3 id="exit-with-result-or-error">
+    <a class="heading-anchor" href="#exit-with-result-or-error" aria-hidden="true">#</a>
+    Exit with Result or Error
+  </h3><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">const</span> { exit } = <span class="hljs-title function_">useApp</span>();
+
+<span class="hljs-comment">// Resolve with a value</span>
+<span class="hljs-title function_">exit</span>(<span class="hljs-string">&quot;done&quot;</span>);
+
+<span class="hljs-comment">// Reject with an error</span>
+<span class="hljs-title function_">exit</span>(<span class="hljs-keyword">new</span> <span class="hljs-title class_">Error</span>(<span class="hljs-string">&quot;Something went wrong&quot;</span>));
+
+<span class="hljs-comment">// In the caller:</span>
+<span class="hljs-keyword">try</span> {
+  <span class="hljs-keyword">const</span> result = <span class="hljs-keyword">await</span> <span class="hljs-title function_">waitUntilExit</span>();
+  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;Result:&#x27;</span>, result); <span class="hljs-comment">// &quot;done&quot;</span>
+} <span class="hljs-keyword">catch</span> (err) {
+  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">error</span>(<span class="hljs-string">&#x27;Error:&#x27;</span>, err.<span class="hljs-property">message</span>); <span class="hljs-comment">// &quot;Something went wrong&quot;</span>
+}</code></pre>
+  </div><h3 id="ctrlc">
+    <a class="heading-anchor" href="#ctrlc" aria-hidden="true">#</a>
+    Ctrl+C
+  </h3><p>By default, Ctrl+C is enabled and will exit the app. You can disable it:</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-title function_">render</span>(<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">App</span> /&gt;</span></span>, { <span class="hljs-attr">exitOnCtrlC</span>: <span class="hljs-literal">false</span> });</code></pre>
+  </div><div class="hr-wrapper"><hr /></div><h2 id="16-static-output-logs-that-dont-scroll-away">
+    <a class="heading-anchor" href="#16-static-output-logs-that-dont-scroll-away" aria-hidden="true">#</a>
+    16. Static Output — Logs That Don't Scroll Away
+  </h2><p>By default, Ink re-renders its output in-place (like how <code class="inline-code">htop</code> works). But sometimes you want items to permanently scroll up, like a log. That&#39;s what <code class="inline-code">&lt;Static&gt;</code> is for.</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">import</span> <span class="hljs-title class_">React</span>, { useState, useEffect } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;react&#x27;</span>;
+<span class="hljs-keyword">import</span> { render, <span class="hljs-title class_">Static</span>, <span class="hljs-title class_">Box</span>, <span class="hljs-title class_">Text</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink&#x27;</span>;
+
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">BuildLogger</span> = (<span class="hljs-params"></span>) =&gt; {
+  <span class="hljs-keyword">const</span> [completedTasks, setCompletedTasks] = <span class="hljs-title function_">useState</span>([]);
+  <span class="hljs-keyword">const</span> [current, setCurrent] = <span class="hljs-title function_">useState</span>(<span class="hljs-string">&#x27;Starting...&#x27;</span>);
+
+  <span class="hljs-title function_">useEffect</span>(<span class="hljs-function">() =&gt;</span> {
+    <span class="hljs-keyword">const</span> tasks = [
+      <span class="hljs-string">&#x27;Installing dependencies&#x27;</span>,
+      <span class="hljs-string">&#x27;Compiling TypeScript&#x27;</span>,
+      <span class="hljs-string">&#x27;Running tests&#x27;</span>,
+      <span class="hljs-string">&#x27;Building bundle&#x27;</span>,
+      <span class="hljs-string">&#x27;Done!&#x27;</span>
+    ];
+    <span class="hljs-keyword">let</span> i = <span class="hljs-number">0</span>;
+    <span class="hljs-keyword">const</span> interval = <span class="hljs-built_in">setInterval</span>(<span class="hljs-function">() =&gt;</span> {
+      <span class="hljs-keyword">if</span> (i &lt; tasks.<span class="hljs-property">length</span>) {
+        <span class="hljs-title function_">setCurrent</span>(tasks[i]);
+        <span class="hljs-title function_">setCompletedTasks</span>(<span class="hljs-function"><span class="hljs-params">prev</span> =&gt;</span> [...prev, tasks[i]]);
+        i++;
+      } <span class="hljs-keyword">else</span> {
+        <span class="hljs-built_in">clearInterval</span>(interval);
+      }
+    }, <span class="hljs-number">800</span>);
+    <span class="hljs-keyword">return</span> <span class="hljs-function">() =&gt;</span> <span class="hljs-built_in">clearInterval</span>(interval);
+  }, []);
+
+  <span class="hljs-keyword">return</span> (
+    <span class="language-xml"><span class="hljs-tag">&lt;&gt;</span>
+      {/* Completed tasks scroll up permanently */}
+      <span class="hljs-tag">&lt;<span class="hljs-name">Static</span> <span class="hljs-attr">items</span>=<span class="hljs-string">{completedTasks}</span>&gt;</span>
+        {(task, index) =&gt; (
+          <span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">key</span>=<span class="hljs-string">{index}</span>&gt;</span>
+            <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;green&quot;</span>&gt;</span>✔ {task}<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+          <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span>
+        )}
+      <span class="hljs-tag">&lt;/<span class="hljs-name">Static</span>&gt;</span>
+
+      {/* This stays at the bottom and updates in place */}
+      <span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">borderStyle</span>=<span class="hljs-string">&quot;round&quot;</span> <span class="hljs-attr">paddingX</span>=<span class="hljs-string">{1}</span> <span class="hljs-attr">marginTop</span>=<span class="hljs-string">{1}</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;yellow&quot;</span>&gt;</span>⟳ {current}<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+      <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span>
+    <span class="hljs-tag">&lt;/&gt;</span></span>
+  );
+};
+
+<span class="hljs-title function_">render</span>(<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">BuildLogger</span> /&gt;</span></span>);</code></pre>
+  </div><div class="hr-wrapper"><hr /></div><h2 id="17-useful-community-components">
+    <a class="heading-anchor" href="#17-useful-community-components" aria-hidden="true">#</a>
+    17. Useful Community Components
+  </h2><p>Don&#39;t reinvent the wheel. The Ink ecosystem has great community packages:</p><h3 id="ink-text-input-polished-text-input">
+    <a class="heading-anchor" href="#ink-text-input-polished-text-input" aria-hidden="true">#</a>
+    `ink-text-input` — Polished text input
+  </h3><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-bash">npm install ink-text-input</code></pre>
+  </div><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">import</span> <span class="hljs-title class_">TextInput</span> <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink-text-input&#x27;</span>;
+
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">SearchBox</span> = (<span class="hljs-params"></span>) =&gt; {
+  <span class="hljs-keyword">const</span> [query, setQuery] = <span class="hljs-title function_">useState</span>(<span class="hljs-string">&#x27;&#x27;</span>);
+
+  <span class="hljs-keyword">return</span> (
+    <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Search: <span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">TextInput</span> <span class="hljs-attr">value</span>=<span class="hljs-string">{query}</span> <span class="hljs-attr">onChange</span>=<span class="hljs-string">{setQuery}</span> /&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+  );
+};</code></pre>
+  </div><h3 id="ink-spinner-loading-spinner">
+    <a class="heading-anchor" href="#ink-spinner-loading-spinner" aria-hidden="true">#</a>
+    `ink-spinner` — Loading spinner
+  </h3><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-bash">npm install ink-spinner</code></pre>
+  </div><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">import</span> <span class="hljs-title class_">Spinner</span> <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink-spinner&#x27;</span>;
+
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">Loading</span> = (<span class="hljs-params"></span>) =&gt; (
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;green&quot;</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">Spinner</span> <span class="hljs-attr">type</span>=<span class="hljs-string">&quot;dots&quot;</span> /&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span> Loading...<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+);</code></pre>
+  </div><h3 id="ink-select-input-dropdownmenu-selector">
+    <a class="heading-anchor" href="#ink-select-input-dropdownmenu-selector" aria-hidden="true">#</a>
+    `ink-select-input` — Dropdown/menu selector
+  </h3><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-bash">npm install ink-select-input</code></pre>
+  </div><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">import</span> <span class="hljs-title class_">SelectInput</span> <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink-select-input&#x27;</span>;
+
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">Menu</span> = (<span class="hljs-params"></span>) =&gt; {
+  <span class="hljs-keyword">const</span> items = [
+    { <span class="hljs-attr">label</span>: <span class="hljs-string">&#x27;New Project&#x27;</span>, <span class="hljs-attr">value</span>: <span class="hljs-string">&#x27;new&#x27;</span> },
+    { <span class="hljs-attr">label</span>: <span class="hljs-string">&#x27;Open Project&#x27;</span>, <span class="hljs-attr">value</span>: <span class="hljs-string">&#x27;open&#x27;</span> },
+    { <span class="hljs-attr">label</span>: <span class="hljs-string">&#x27;Settings&#x27;</span>, <span class="hljs-attr">value</span>: <span class="hljs-string">&#x27;settings&#x27;</span> },
+  ];
+
+  <span class="hljs-keyword">const</span> <span class="hljs-title function_">handleSelect</span> = (<span class="hljs-params">item</span>) =&gt; {
+    <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;Selected:&#x27;</span>, item.<span class="hljs-property">value</span>);
+  };
+
+  <span class="hljs-keyword">return</span> <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">SelectInput</span> <span class="hljs-attr">items</span>=<span class="hljs-string">{items}</span> <span class="hljs-attr">onSelect</span>=<span class="hljs-string">{handleSelect}</span> /&gt;</span></span>;
+};</code></pre>
+  </div><h3 id="ink-progress-bar-progress-bar">
+    <a class="heading-anchor" href="#ink-progress-bar-progress-bar" aria-hidden="true">#</a>
+    `ink-progress-bar` — Progress bar
+  </h3><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-bash">npm install ink-progress-bar</code></pre>
+  </div><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">import</span> <span class="hljs-title class_">ProgressBar</span> <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink-progress-bar&#x27;</span>;
+
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">Download</span> = (<span class="hljs-params">{ percent }</span>) =&gt; (
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">flexDirection</span>=<span class="hljs-string">&quot;column&quot;</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Downloading...<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">ProgressBar</span> <span class="hljs-attr">percent</span>=<span class="hljs-string">{percent}</span> /&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>{percent}%<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+);</code></pre>
+  </div><div class="hr-wrapper"><hr /></div><h2 id="18-real-project-build-an-interactive-file-browser">
+    <a class="heading-anchor" href="#18-real-project-build-an-interactive-file-browser" aria-hidden="true">#</a>
+    18. Real Project: Build an Interactive File Browser
+  </h2><p>Let&#39;s put everything together and build a real interactive TUI — a simple file browser where you can navigate directories with arrow keys.</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-comment">// file-browser.jsx</span>
+<span class="hljs-keyword">import</span> <span class="hljs-title class_">React</span>, { useState, useEffect } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;react&#x27;</span>;
+<span class="hljs-keyword">import</span> { render, <span class="hljs-title class_">Box</span>, <span class="hljs-title class_">Text</span>, useInput, useApp } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink&#x27;</span>;
+<span class="hljs-keyword">import</span> { readdir, stat } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;fs/promises&#x27;</span>;
+<span class="hljs-keyword">import</span> { join, resolve } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;path&#x27;</span>;
+
+<span class="hljs-comment">// ─── Single item in the file list ───────────────────────────</span>
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">FileItem</span> = (<span class="hljs-params">{ name, isDirectory, isSelected }</span>) =&gt; (
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">color</span>=<span class="hljs-string">{isSelected</span> ? &#x27;<span class="hljs-attr">black</span>&#x27; <span class="hljs-attr">:</span> &#x27;<span class="hljs-attr">white</span>&#x27;}
+          <span class="hljs-attr">backgroundColor</span>=<span class="hljs-string">{isSelected</span> ? &#x27;<span class="hljs-attr">cyan</span>&#x27; <span class="hljs-attr">:</span> <span class="hljs-attr">undefined</span>}&gt;</span>
+      {isSelected ? &#x27;›&#x27; : &#x27; &#x27;}{&#x27; &#x27;}
+      <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">color</span>=<span class="hljs-string">{isDirectory</span> ? &#x27;<span class="hljs-attr">cyan</span>&#x27; <span class="hljs-attr">:</span> &#x27;<span class="hljs-attr">white</span>&#x27;}
+            <span class="hljs-attr">bold</span>=<span class="hljs-string">{isDirectory}</span>&gt;</span>
+        {isDirectory ? &#x27;📁 &#x27; : &#x27;📄 &#x27;}{name}
+      <span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+);
+
+<span class="hljs-comment">// ─── Status bar at the bottom ───────────────────────────────</span>
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">StatusBar</span> = (<span class="hljs-params">{ path, count, selected }</span>) =&gt; (
+  <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">borderStyle</span>=<span class="hljs-string">&quot;single&quot;</span> <span class="hljs-attr">paddingX</span>=<span class="hljs-string">{1}</span> <span class="hljs-attr">marginTop</span>=<span class="hljs-string">{1}</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">dimColor</span>&gt;</span>{path}<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Spacer</span> /&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">dimColor</span>&gt;</span>{selected + 1}/{count} items<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+);
+
+<span class="hljs-comment">// ─── Main App ───────────────────────────────────────────────</span>
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">FileBrowser</span> = (<span class="hljs-params"></span>) =&gt; {
+  <span class="hljs-keyword">const</span> { exit } = <span class="hljs-title function_">useApp</span>();
+  <span class="hljs-keyword">const</span> [currentPath, setCurrentPath] = <span class="hljs-title function_">useState</span>(process.<span class="hljs-title function_">cwd</span>());
+  <span class="hljs-keyword">const</span> [files, setFiles] = <span class="hljs-title function_">useState</span>([]);
+  <span class="hljs-keyword">const</span> [selectedIndex, setSelectedIndex] = <span class="hljs-title function_">useState</span>(<span class="hljs-number">0</span>);
+  <span class="hljs-keyword">const</span> [error, setError] = <span class="hljs-title function_">useState</span>(<span class="hljs-literal">null</span>);
+
+  <span class="hljs-comment">// Load directory contents whenever path changes</span>
+  <span class="hljs-title function_">useEffect</span>(<span class="hljs-function">() =&gt;</span> {
+    <span class="hljs-keyword">const</span> <span class="hljs-title function_">loadDir</span> = <span class="hljs-keyword">async</span> (<span class="hljs-params"></span>) =&gt; {
+      <span class="hljs-keyword">try</span> {
+        <span class="hljs-keyword">const</span> entries = <span class="hljs-keyword">await</span> <span class="hljs-title function_">readdir</span>(currentPath, { <span class="hljs-attr">withFileTypes</span>: <span class="hljs-literal">true</span> });
+        <span class="hljs-keyword">const</span> sorted = entries
+          .<span class="hljs-title function_">sort</span>(<span class="hljs-function">(<span class="hljs-params">a, b</span>) =&gt;</span> {
+            <span class="hljs-comment">// Directories first, then alphabetically</span>
+            <span class="hljs-keyword">if</span> (a.<span class="hljs-title function_">isDirectory</span>() &amp;&amp; !b.<span class="hljs-title function_">isDirectory</span>()) <span class="hljs-keyword">return</span> -<span class="hljs-number">1</span>;
+            <span class="hljs-keyword">if</span> (!a.<span class="hljs-title function_">isDirectory</span>() &amp;&amp; b.<span class="hljs-title function_">isDirectory</span>()) <span class="hljs-keyword">return</span> <span class="hljs-number">1</span>;
+            <span class="hljs-keyword">return</span> a.<span class="hljs-property">name</span>.<span class="hljs-title function_">localeCompare</span>(b.<span class="hljs-property">name</span>);
+          })
+          .<span class="hljs-title function_">map</span>(<span class="hljs-function"><span class="hljs-params">entry</span> =&gt;</span> ({
+            <span class="hljs-attr">name</span>: entry.<span class="hljs-property">name</span>,
+            <span class="hljs-attr">isDirectory</span>: entry.<span class="hljs-title function_">isDirectory</span>(),
+          }));
+
+        <span class="hljs-comment">// Add &quot;..&quot; to go up</span>
+        <span class="hljs-title function_">setFiles</span>([{ <span class="hljs-attr">name</span>: <span class="hljs-string">&#x27;..&#x27;</span>, <span class="hljs-attr">isDirectory</span>: <span class="hljs-literal">true</span> }, ...sorted]);
+        <span class="hljs-title function_">setSelectedIndex</span>(<span class="hljs-number">0</span>);
+        <span class="hljs-title function_">setError</span>(<span class="hljs-literal">null</span>);
+      } <span class="hljs-keyword">catch</span> (err) {
+        <span class="hljs-title function_">setError</span>(err.<span class="hljs-property">message</span>);
+      }
+    };
+
+    <span class="hljs-title function_">loadDir</span>();
+  }, [currentPath]);
+
+  <span class="hljs-comment">// Handle keyboard input</span>
+  <span class="hljs-title function_">useInput</span>(<span class="hljs-function">(<span class="hljs-params">input, key</span>) =&gt;</span> {
+    <span class="hljs-keyword">if</span> (input === <span class="hljs-string">&#x27;q&#x27;</span> || key.<span class="hljs-property">escape</span>) {
+      <span class="hljs-title function_">exit</span>();
+    }
+
+    <span class="hljs-keyword">if</span> (key.<span class="hljs-property">upArrow</span>) {
+      <span class="hljs-title function_">setSelectedIndex</span>(<span class="hljs-function"><span class="hljs-params">prev</span> =&gt;</span> <span class="hljs-title class_">Math</span>.<span class="hljs-title function_">max</span>(<span class="hljs-number">0</span>, prev - <span class="hljs-number">1</span>));
+    }
+
+    <span class="hljs-keyword">if</span> (key.<span class="hljs-property">downArrow</span>) {
+      <span class="hljs-title function_">setSelectedIndex</span>(<span class="hljs-function"><span class="hljs-params">prev</span> =&gt;</span> <span class="hljs-title class_">Math</span>.<span class="hljs-title function_">min</span>(files.<span class="hljs-property">length</span> - <span class="hljs-number">1</span>, prev + <span class="hljs-number">1</span>));
+    }
+
+    <span class="hljs-keyword">if</span> (key.<span class="hljs-property">return</span>) {
+      <span class="hljs-keyword">const</span> selected = files[selectedIndex];
+      <span class="hljs-keyword">if</span> (selected &amp;&amp; selected.<span class="hljs-property">isDirectory</span>) {
+        <span class="hljs-keyword">if</span> (selected.<span class="hljs-property">name</span> === <span class="hljs-string">&#x27;..&#x27;</span>) {
+          <span class="hljs-title function_">setCurrentPath</span>(<span class="hljs-function"><span class="hljs-params">prev</span> =&gt;</span> <span class="hljs-title function_">resolve</span>(prev, <span class="hljs-string">&#x27;..&#x27;</span>));
+        } <span class="hljs-keyword">else</span> {
+          <span class="hljs-title function_">setCurrentPath</span>(<span class="hljs-function"><span class="hljs-params">prev</span> =&gt;</span> <span class="hljs-title function_">join</span>(prev, selected.<span class="hljs-property">name</span>));
+        }
+      }
+    }
+  });
+
+  <span class="hljs-keyword">return</span> (
+    <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">flexDirection</span>=<span class="hljs-string">&quot;column&quot;</span> <span class="hljs-attr">padding</span>=<span class="hljs-string">{1}</span>&gt;</span>
+      {/* Header */}
+      <span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">borderStyle</span>=<span class="hljs-string">&quot;round&quot;</span> <span class="hljs-attr">paddingX</span>=<span class="hljs-string">{1}</span> <span class="hljs-attr">marginBottom</span>=<span class="hljs-string">{1}</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">bold</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;cyan&quot;</span>&gt;</span>File Browser<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">dimColor</span>&gt;</span>  {currentPath}<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+      <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span>
+
+      {/* File list */}
+      <span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">flexDirection</span>=<span class="hljs-string">&quot;column&quot;</span>&gt;</span>
+        {error ? (
+          <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">color</span>=<span class="hljs-string">&quot;red&quot;</span>&gt;</span>Error: {error}<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+        ) : (
+          files.map((file, index) =&gt; (
+            <span class="hljs-tag">&lt;<span class="hljs-name">FileItem</span>
+              <span class="hljs-attr">key</span>=<span class="hljs-string">{file.name}</span>
+              <span class="hljs-attr">name</span>=<span class="hljs-string">{file.name}</span>
+              <span class="hljs-attr">isDirectory</span>=<span class="hljs-string">{file.isDirectory}</span>
+              <span class="hljs-attr">isSelected</span>=<span class="hljs-string">{index</span> === <span class="hljs-string">selectedIndex}</span>
+            /&gt;</span>
+          ))
+        )}
+      <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span>
+
+      {/* Footer */}
+      <span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">marginTop</span>=<span class="hljs-string">{1}</span> <span class="hljs-attr">borderStyle</span>=<span class="hljs-string">&quot;single&quot;</span> <span class="hljs-attr">paddingX</span>=<span class="hljs-string">{1}</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">dimColor</span>&gt;</span>
+          ↑↓ navigate  ↵ open  q quit
+        <span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Box</span> <span class="hljs-attr">flexGrow</span>=<span class="hljs-string">{1}</span> /&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Text</span> <span class="hljs-attr">dimColor</span>&gt;</span>{selectedIndex + 1}/{files.length}<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span>
+      <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Box</span>&gt;</span></span>
+  );
+};
+
+<span class="hljs-title function_">render</span>(<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">FileBrowser</span> /&gt;</span></span>);</code></pre>
+  </div><p>This example demonstrates:</p><ul>
+<li><code class="inline-code">useState</code> for multiple pieces of state</li>
+<li><code class="inline-code">useEffect</code> with dependency (<code class="inline-code">currentPath</code>) to reload on path change</li>
+<li><code class="inline-code">useInput</code> for keyboard navigation</li>
+<li><code class="inline-code">useApp</code> to cleanly exit</li>
+<li>Component composition (<code class="inline-code">FileItem</code>, <code class="inline-code">StatusBar</code> as separate components)</li>
+<li>Props passing from parent to children</li>
+<li>Async data loading inside effects</li>
+</ul>
+<div class="hr-wrapper"><hr /></div><h2 id="19-testing-ink-apps">
+    <a class="heading-anchor" href="#19-testing-ink-apps" aria-hidden="true">#</a>
+    19. Testing Ink Apps
+  </h2><p>Ink provides <code class="inline-code">ink-testing-library</code> for testing your components without a real terminal.</p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-bash">npm install --save-dev ink-testing-library</code></pre>
+  </div><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-comment">// app.test.jsx</span>
+<span class="hljs-keyword">import</span> <span class="hljs-title class_">React</span> <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;react&#x27;</span>;
+<span class="hljs-keyword">import</span> { render } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink-testing-library&#x27;</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title class_">Text</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;ink&#x27;</span>;
+
+<span class="hljs-comment">// Simple component to test</span>
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">Greeting</span> = (<span class="hljs-params">{ name }</span>) =&gt; <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Text</span>&gt;</span>Hello, {name}!<span class="hljs-tag">&lt;/<span class="hljs-name">Text</span>&gt;</span></span>;
+
+<span class="hljs-comment">// Test it</span>
+<span class="hljs-keyword">const</span> { lastFrame } = <span class="hljs-title function_">render</span>(<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">Greeting</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;World&quot;</span> /&gt;</span></span>);
+<span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-title function_">lastFrame</span>()); <span class="hljs-comment">// &quot;Hello, World!&quot;</span>
+<span class="hljs-variable language_">console</span>.<span class="hljs-title function_">assert</span>(<span class="hljs-title function_">lastFrame</span>() === <span class="hljs-string">&#x27;Hello, World!&#x27;</span>);</code></pre>
+  </div><p><strong>Testing state and interaction:</strong></p><div class="code-block-wrapper">
+    <div class="code-block-header"><span class="code-lang">jsx</span><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-jsx"><span class="hljs-keyword">import</span> { renderHook, act } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@testing-library/react&#x27;</span>;
+
+<span class="hljs-comment">// For components with state, use ink-testing-library&#x27;s stdin</span>
+<span class="hljs-keyword">const</span> { lastFrame, stdin } = <span class="hljs-title function_">render</span>(<span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">MyInput</span> /&gt;</span></span>);
+
+<span class="hljs-comment">// Simulate user typing</span>
+stdin.<span class="hljs-title function_">write</span>(<span class="hljs-string">&#x27;hello&#x27;</span>);
+stdin.<span class="hljs-title function_">write</span>(<span class="hljs-string">&#x27;\r&#x27;</span>); <span class="hljs-comment">// Enter key</span>
+
+<span class="hljs-comment">// Check the result</span>
+<span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-title function_">lastFrame</span>()); <span class="hljs-comment">// &quot;You typed: hello&quot;</span></code></pre>
+  </div><div class="hr-wrapper"><hr /></div><h2 id="20-whats-next">
+    <a class="heading-anchor" href="#20-whats-next" aria-hidden="true">#</a>
+    20. What's Next?
+  </h2><p>You now have a solid foundation. Here&#39;s where to go deeper:</p><p><strong>Ink documentation and examples:</strong></p><ul>
+<li>Official README: <a href="https://github.com/vadimdemedes/ink" target="_blank" rel="noopener">https://github.com/vadimdemedes/ink</a></li>
+<li>Examples directory: <a href="https://github.com/vadimdemedes/ink/tree/master/examples" target="_blank" rel="noopener">https://github.com/vadimdemedes/ink/tree/master/examples</a></li>
+<li>Full hook and component API: in the README linked above</li>
+</ul>
+<p><strong>React fundamentals (going deeper):</strong></p><ul>
+<li>React Context API — share state across deeply nested components without prop drilling</li>
+<li><code class="inline-code">useReducer</code> — complex state machines (good for multi-step TUI wizards)</li>
+<li><code class="inline-code">useRef</code> — accessing elements without re-rendering</li>
+<li><code class="inline-code">useMemo</code> / <code class="inline-code">useCallback</code> — performance optimizations</li>
+<li>React Suspense — handling async loading states declaratively</li>
+</ul>
+<p><strong>Advanced Ink patterns:</strong></p><ul>
+<li><code class="inline-code">useBoxMetrics</code> — measure element dimensions at runtime</li>
+<li><code class="inline-code">useWindowSize</code> — respond to terminal resize</li>
+<li><code class="inline-code">&lt;Transform&gt;</code> — post-process rendered text (for gradients, etc.)</li>
+<li><code class="inline-code">alternateScreen: true</code> — full-screen mode (like vim&#39;s buffer)</li>
+<li>React Devtools integration — debug your TUI components visually</li>
+</ul>
+<p><strong>Community packages to explore:</strong></p><ul>
+<li><code class="inline-code">ink-spinner</code> — loading animations</li>
+<li><code class="inline-code">ink-select-input</code> — keyboard-navigable menus</li>
+<li><code class="inline-code">ink-text-input</code> — text input fields</li>
+<li><code class="inline-code">ink-table</code> — render tabular data</li>
+<li><code class="inline-code">ink-markdown</code> — syntax-highlighted markdown</li>
+<li><code class="inline-code">ink-task-list</code> — task checklist with statuses</li>
+<li><code class="inline-code">ink-form</code> — full form management</li>
+</ul>
+<p><strong>Quick cheat sheet:</strong></p><div class="code-block-wrapper">
+    <div class="code-block-header"><button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+    <pre><code class="hljs language-">Ink Primitives:
+  <span class="hljs-variable">&lt;Text&gt;</span>             — display styled text
+  <span class="hljs-variable">&lt;Box&gt;</span>              — flexbox container
+  <span class="hljs-variable">&lt;Newline&gt;</span>          — line break inside Text
+  <span class="hljs-variable">&lt;Spacer&gt;</span>           — flexible space between items
+  <span class="hljs-variable">&lt;Static&gt;</span>           — permanent scrolling output
+  <span class="hljs-variable">&lt;Transform&gt;</span>        — post-process text output
+
+Ink Hooks:
+  useInput()         — listen <span class="hljs-keyword">to</span> keyboard events
+  usePaste()         — listen <span class="hljs-keyword">to</span> paste events
+  useApp()           — get exit() function
+  useFocus()         — get isFocused <span class="hljs-keyword">state</span>
+  useFocusManager()  — programmatic focus control
+  useStdout()        — access stdout stream
+  useWindowSize()    — get terminal columns/rows
+  useBoxMetrics()    — measure a Box element
+
+React Hooks (work <span class="hljs-keyword">in</span> Ink too):
+  useState()         — reactive <span class="hljs-keyword">state</span>
+  useEffect()        — side effects
+  useRef()           — mutable ref without re-render
+  useContext()       — consume shared context
+  useReducer()       — complex <span class="hljs-keyword">state</span> machine
+  useMemo()          — memoize expensive values
+  useCallback()      — memoize functions</code></pre>
+  </div><div class="hr-wrapper"><hr /></div><p><em>Happy hacking, Temicide. Build something cool.</em> 🌈</p>
+        </div>
+
+        <!-- Footer -->
+        <footer class="article-footer">
+          <p><strong>Happy hacking, Temicide. Build something cool.</strong> 🌈</p>
+          <p>Generated with ♥ from ink-tutorial.md</p>
+        </footer>
+      </article>
+    </main>
+  </div>
+
+  <!-- Back to Top Button -->
+  <button class="back-to-top" id="backToTop" title="Back to top" aria-label="Back to top">↑</button>
+
+  <script>
+    // ── Copy code button ────────────────────────────────────────
+    window.copyCode = function(btn) {
+      const code = btn.closest('.code-block-wrapper').querySelector('code').innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        btn.classList.add('copied');
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!';
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+        }, 2000);
+      });
+    };
+
+    // ── Back to top button ──────────────────────────────────────
+    const backToTop = document.getElementById('backToTop');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 400) {
+        backToTop.classList.add('visible');
+      } else {
+        backToTop.classList.remove('visible');
+      }
+    });
+    backToTop.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // ── Active TOC link highlighting ────────────────────────────
+    const tocLinks = document.querySelectorAll('.toc-sidebar a');
+    const headings = document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4');
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          tocLinks.forEach(link => {
+            link.classList.toggle('active', link.getAttribute('href') === '#' + id);
+          });
+        }
+      });
+    }, { rootMargin: '-80px 0px -70% 0px' });
+
+    headings.forEach(h => observer.observe(h));
+  </script>
+</body>
+</html>
