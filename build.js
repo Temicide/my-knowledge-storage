@@ -962,7 +962,7 @@ const html = `<!DOCTYPE html>
 </html>`;
 
 // ── Write output ────────────────────────────────────────────────
-const outPath = resolve(__dirname, 'ink-tutorial.html');
+const outPath = resolve(__dirname, 'index.html');
 writeFileSync(outPath, html, 'utf-8');
 console.log(`✅ Built: ${outPath}`);
 console.log(`   ${Math.round(Buffer.byteLength(html, 'utf-8') / 1024)} KB — ${wordCount.toLocaleString()} words — ~${readTime} min read`);

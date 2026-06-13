@@ -8,7 +8,7 @@ import { spawn } from 'child_process';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3456;
 const mdPath = resolve(__dirname, 'ink-tutorial.md');
-const htmlPath = resolve(__dirname, 'ink-tutorial.html');
+const htmlPath = resolve(__dirname, 'index.html');
 
 // ── Build once on start ────────────────────────────────────────
 function build() {
