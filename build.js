@@ -1,14 +1,22 @@
-import { readFileSync, writeFileSync, readdirSync, statSync, mkdirSync, existsSync, rmSync } from 'fs';
-import { resolve, dirname, join, basename, relative, sep } from 'path';
-import { fileURLToPath } from 'url';
-import { marked } from 'marked';
-import hljs from 'highlight.js';
-import { generateCSS } from './css.js';
+import {
+  readFileSync,
+  writeFileSync,
+  readdirSync,
+  statSync,
+  mkdirSync,
+  existsSync,
+  rmSync,
+} from "fs";
+import { resolve, dirname, join, basename, relative, sep } from "path";
+import { fileURLToPath } from "url";
+import { marked } from "marked";
+import hljs from "highlight.js";
+import { generateCSS } from "./css.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const knowledgeDir = resolve(__dirname, 'knowledges');
-const distDir = resolve(__dirname, 'dist');
-const knowledgeDistDir = join(distDir, 'knowledge');
+const knowledgeDir = resolve(__dirname, "knowledges");
+const distDir = resolve(__dirname, "dist");
+const knowledgeDistDir = join(distDir, "knowledge");
 
 // ── Frontmatter parser (simple key: value, no new dependency) ────
 function parseFrontmatter(raw) {
@@ -17,13 +25,15 @@ function parseFrontmatter(raw) {
   const frontmatterBlock = match[1];
   const body = raw.slice(match[0].length);
   const metadata = {};
-  for (const line of frontmatterBlock.split('\n')) {
-    const colonIdx = line.indexOf(':');
+  for (const line of frontmatterBlock.split("\n")) {
+    const colonIdx = line.indexOf(":");
     if (colonIdx === -1) continue;
     const key = line.slice(0, colonIdx).trim();
     let value = line.slice(colonIdx + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))) {
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
       value = value.slice(1, -1);
     }
     metadata[key] = value;
@@ -34,10 +44,12 @@ function parseFrontmatter(raw) {
 // ── Extract metadata from markdown body ───────────────────────────
 function extractMetadata(body, stat, slug) {
   const h1Match = body.match(/^#\s+(.+)$/m);
-  const title = h1Match ? h1Match[1].replace(/<[^>]*>/g, '').trim() : slug.replace(/-/g, ' ');
+  const title = h1Match
+    ? h1Match[1].replace(/<[^>]*>/g, "").trim()
+    : slug.replace(/-/g, " ");
 
   const h3Match = body.match(/^###\s+(.+)$/m);
-  const subtitle = h3Match ? h3Match[1].replace(/<[^>]*>/g, '').trim() : '';
+  const subtitle = h3Match ? h3Match[1].replace(/<[^>]*>/g, "").trim() : "";
 
   const wordCount = body.split(/\s+/).filter(Boolean).length;
   const readMinutes = Math.max(1, Math.ceil(wordCount / 225));
@@ -53,11 +65,12 @@ function extractHeadings(markdown) {
   while ((match = regex.exec(markdown)) !== null) {
     headings.push({
       level: match[1].length,
-      text: match[2].replace(/<[^>]*>/g, ''),
-      id: match[2].toLowerCase()
-        .replace(/<[^>]*>/g, '')
-        .replace(/[^\w\s-]/g, '')
-        .replace(/\s+/g, '-'),
+      text: match[2].replace(/<[^>]*>/g, ""),
+      id: match[2]
+        .toLowerCase()
+        .replace(/<[^>]*>/g, "")
+        .replace(/[^\w\s-]/g, "")
+        .replace(/\s+/g, "-"),
     });
   }
   return headings;
@@ -68,26 +81,27 @@ function createRenderer() {
   const renderer = new marked.Renderer();
 
   // Code blocks — warm light style
-  renderer.code = function({ text, lang }) {
+  renderer.code = function ({ text, lang }) {
     let highlighted;
     if (lang && hljs.getLanguage(lang)) {
       highlighted = hljs.highlight(text, { language: lang }).value;
     } else {
       highlighted = hljs.highlightAuto(text).value;
     }
-    const langLabel = lang ? `<span class="code-lang">${lang}</span>` : '';
+    const langLabel = lang ? `<span class="code-lang">${lang}</span>` : "";
     return `<div class="code-block-wrapper">
       <div class="code-block-header">${langLabel}<button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
-      <pre><code class="hljs language-${lang || ''}">${highlighted}</code></pre>
+      <pre><code class="hljs language-${lang || ""}">${highlighted}</code></pre>
     </div>`;
   };
 
   // Headings with anchor links
-  renderer.heading = function({ text, depth }) {
-    const id = text.toLowerCase()
-      .replace(/<[^>]*>/g, '')
-      .replace(/[^\w\s-]/g, '')
-      .replace(/\s+/g, '-');
+  renderer.heading = function ({ text, depth }) {
+    const id = text
+      .toLowerCase()
+      .replace(/<[^>]*>/g, "")
+      .replace(/[^\w\s-]/g, "")
+      .replace(/\s+/g, "-");
     return `<h${depth} id="${id}">
       <a class="heading-anchor" href="#${id}" aria-hidden="true">#</a>
       ${text}
@@ -95,17 +109,20 @@ function createRenderer() {
   };
 
   // Blockquotes
-  renderer.blockquote = function({ tokens }) {
+  renderer.blockquote = function ({ tokens }) {
     const content = this.parser.parse(tokens);
     return `<blockquote>${content}</blockquote>`;
   };
 
   // Tables
-  renderer.table = function({ header, rows }) {
-    const headerHtml = header.map(cell => `<th>${cell.text}</th>`).join('');
+  renderer.table = function ({ header, rows }) {
+    const headerHtml = header.map((cell) => `<th>${cell.text}</th>`).join("");
     const bodyHtml = rows
-      .map(row => `<tr>${row.map(cell => `<td>${cell.text}</td>`).join('')}</tr>`)
-      .join('');
+      .map(
+        (row) =>
+          `<tr>${row.map((cell) => `<td>${cell.text}</td>`).join("")}</tr>`,
+      )
+      .join("");
     return `<div class="table-wrapper"><table>
       <thead><tr>${headerHtml}</tr></thead>
       <tbody>${bodyHtml}</tbody>
@@ -113,35 +130,39 @@ function createRenderer() {
   };
 
   // Inline code
-  renderer.codespan = function({ text }) {
+  renderer.codespan = function ({ text }) {
     return `<code class="inline-code">${text}</code>`;
   };
 
   // Images
-  renderer.image = function({ href, title, text }) {
+  renderer.image = function ({ href, title, text }) {
     return `<figure>
-      <img src="${href}" alt="${text}" title="${title || ''}" loading="lazy" />
-      ${text ? `<figcaption>${text}</figcaption>` : ''}
+      <img src="${href}" alt="${text}" title="${title || ""}" loading="lazy" />
+      ${text ? `<figcaption>${text}</figcaption>` : ""}
     </figure>`;
   };
 
   // Horizontal rules
-  renderer.hr = function() {
+  renderer.hr = function () {
     return `<div class="hr-wrapper"><hr /></div>`;
   };
 
   // Links — external links open in new tab
-  renderer.link = function({ href, title, text }) {
-    const titleAttr = title ? ` title="${title}"` : '';
+  renderer.link = function ({ href, title, text }) {
+    const titleAttr = title ? ` title="${title}"` : "";
     const isExternal = /^https?:\/\//.test(href);
-    const targetAttr = isExternal ? ' target="_blank" rel="noopener"' : '';
+    const targetAttr = isExternal ? ' target="_blank" rel="noopener"' : "";
     return `<a href="${href}"${titleAttr}${targetAttr}>${text}</a>`;
   };
 
   // Paragraphs with callout detection
-  renderer.paragraph = function({ tokens }) {
+  renderer.paragraph = function ({ tokens }) {
     const text = this.parser.parseInline(tokens);
-    if (/^(?:> )?(?:💡 |🔑 |⚠️ |✅ )?(?:Tip:|Note:|Important:|Warning:|Key insight:)/i.test(text)) {
+    if (
+      /^(?:> )?(?:💡 |🔑 |⚠️ |✅ )?(?:Tip:|Note:|Important:|Warning:|Key insight:)/i.test(
+        text,
+      )
+    ) {
       return `<div class="callout">${text}</div>`;
     }
     return `<p>${text}</p>`;
@@ -158,19 +179,19 @@ function discoverFiles(dir, baseDir = dir) {
   const results = [];
 
   for (const entry of entries) {
-    if (entry.name.startsWith('_')) continue;
+    if (entry.name.startsWith("_")) continue;
 
     const fullPath = resolve(dir, entry.name);
 
     if (entry.isDirectory()) {
       results.push(...discoverFiles(fullPath, baseDir));
-    } else if (entry.isFile() && entry.name.endsWith('.md')) {
-      const raw = readFileSync(fullPath, 'utf-8');
-      const relPath = relative(baseDir, fullPath).split(sep).join('/');
-      const slug = relPath.replace(/\.md$/, '');
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      const raw = readFileSync(fullPath, "utf-8");
+      const relPath = relative(baseDir, fullPath).split(sep).join("/");
+      const slug = relPath.replace(/\.md$/, "");
       // Topic = first directory component, or "General" for root files
-      const slashIdx = slug.indexOf('/');
-      const topic = slashIdx === -1 ? 'General' : slug.slice(0, slashIdx);
+      const slashIdx = slug.indexOf("/");
+      const topic = slashIdx === -1 ? "General" : slug.slice(0, slashIdx);
       const stat = statSync(fullPath);
       const { metadata, body } = parseFrontmatter(raw);
       results.push({ path: fullPath, slug, topic, raw, metadata, body, stat });
@@ -179,8 +200,8 @@ function discoverFiles(dir, baseDir = dir) {
 
   // Sort: "General" first, then alpha by topic, within topic by mtime desc
   results.sort((a, b) => {
-    if (a.topic === 'General' && b.topic !== 'General') return -1;
-    if (b.topic === 'General' && a.topic !== 'General') return 1;
+    if (a.topic === "General" && b.topic !== "General") return -1;
+    if (b.topic === "General" && a.topic !== "General") return 1;
     if (a.topic !== b.topic) return a.topic.localeCompare(b.topic);
     return b.stat.mtimeMs - a.stat.mtimeMs;
   });
@@ -196,7 +217,7 @@ function renderCard(file) {
     <a href="/knowledge/${file.slug}" class="knowledge-card">
       <div class="card-content">
         <h2 class="card-title">${esc(merged.title)}</h2>
-        ${merged.subtitle ? `<p class="card-subtitle">${esc(merged.subtitle)}</p>` : ''}
+        ${merged.subtitle ? `<p class="card-subtitle">${esc(merged.subtitle)}</p>` : ""}
         <div class="card-meta">
           <span>${merged.wordCount.toLocaleString()} words</span>
           <span class="meta-sep">·</span>
@@ -221,40 +242,45 @@ function generateListingPage(files) {
     topics.get(f.topic).push(f);
   }
 
-  const bodyHtml = files.length === 0
-    ? `<div class="empty-state">
+  const bodyHtml =
+    files.length === 0
+      ? `<div class="empty-state">
         <p>No knowledge files yet.</p>
         <p class="hint">Add <code>.md</code> files to <code>knowledges/</code> directory or topic folders inside it.</p>
       </div>`
-    : [...topics.entries()].map(([topic, topicFiles]) => `
+      : [...topics.entries()]
+          .map(
+            ([topic, topicFiles]) => `
       <section class="topic-section" data-topic="${esc(topic)}">
         <button class="topic-header" onclick="toggleTopic(this)" aria-expanded="true">
           <span class="topic-name">${esc(topic)}</span>
           <span class="topic-meta">
-            <span class="topic-count">${topicFiles.length} file${topicFiles.length !== 1 ? 's' : ''}</span>
+            <span class="topic-count">${topicFiles.length} file${topicFiles.length !== 1 ? "s" : ""}</span>
             <span class="topic-toggle" aria-hidden="true">▾</span>
           </span>
         </button>
         <div class="topic-cards">
-          ${topicFiles.map(renderCard).join('\n')}
+          ${topicFiles.map(renderCard).join("\n")}
         </div>
-      </section>`).join('\n');
+      </section>`,
+          )
+          .join("\n");
 
-  const css = generateCSS({ page: 'listing' });
+  const css = generateCSS({ page: "listing" });
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Knowledge Base</title>
+  <title>temi's knowledge</title>
   <meta name="description" content="Personal knowledge base — notes, tutorials, and references.">
   ${css}
 </head>
 <body>
   <main class="listing-container">
     <header class="listing-header">
-      <h1>Knowledge Base</h1>
+      <h1>Temicide's knowledge Base</h1>
       <p class="subtitle">Personal notes, tutorials, and references. Browse by topic, track your progress as you go.</p>
       <div class="progress-summary">
         <span class="progress-label"><span id="readCount">0</span> of <span id="totalCount">${files.length}</span> read</span>
@@ -349,16 +375,21 @@ function generateReadingPage(file, allFiles) {
   const bodyHtml = marked.parse(body);
 
   // TOC from headings
-  const headings = extractHeadings(body).filter(h => h.level <= 3);
+  const headings = extractHeadings(body).filter((h) => h.level <= 3);
   const tocHtml = headings
-    .map(h => `<li class="toc-item toc-level-${h.level}"><a href="#${h.id}">${esc(h.text)}</a></li>`)
-    .join('\n');
+    .map(
+      (h) =>
+        `<li class="toc-item toc-level-${h.level}"><a href="#${h.id}">${esc(h.text)}</a></li>`,
+    )
+    .join("\n");
 
-  const formattedDate = merged.mtime.toLocaleDateString('en-US', {
-    year: 'numeric', month: 'long', day: 'numeric'
+  const formattedDate = merged.mtime.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
 
-  const css = generateCSS({ page: 'reading' });
+  const css = generateCSS({ page: "reading" });
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -394,7 +425,7 @@ function generateReadingPage(file, allFiles) {
       <article>
         <header class="article-hero">
           <h1>${esc(merged.title)}</h1>
-          ${merged.subtitle ? `<p class="article-subtitle">${esc(merged.subtitle)}</p>` : ''}
+          ${merged.subtitle ? `<p class="article-subtitle">${esc(merged.subtitle)}</p>` : ""}
           <div class="article-meta">
             <span>${merged.wordCount.toLocaleString()} words</span>
             <span class="meta-sep">·</span>
@@ -407,7 +438,7 @@ function generateReadingPage(file, allFiles) {
         <!-- In-content TOC (mobile) -->
         <nav class="in-content-toc">
           <div class="in-content-toc-title">Contents</div>
-          <ol>${headings.map(h => `<li><a href="#${h.id}">${esc(h.text)}</a></li>`).join('\n')}</ol>
+          <ol>${headings.map((h) => `<li><a href="#${h.id}">${esc(h.text)}</a></li>`).join("\n")}</ol>
         </nav>
 
         <!-- Rendered Content -->
@@ -510,11 +541,11 @@ function generateReadingPage(file, allFiles) {
 // ── HTML escape utility ───────────────────────────────────────────
 function esc(str) {
   return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 // ── Clean stale HTML files (recursive) ────────────────────────────
@@ -529,9 +560,9 @@ function cleanStale(dir, existingSlugs, baseDir) {
       try {
         if (readdirSync(fullPath).length === 0) rmSync(fullPath);
       } catch {}
-    } else if (entry.isFile() && entry.name.endsWith('.html')) {
-      const relPath = relative(baseDir, fullPath).split(sep).join('/');
-      const slug = relPath.replace(/\.html$/, '');
+    } else if (entry.isFile() && entry.name.endsWith(".html")) {
+      const relPath = relative(baseDir, fullPath).split(sep).join("/");
+      const slug = relPath.replace(/\.html$/, "");
       if (!existingSlugs.has(slug)) {
         rmSync(fullPath);
         console.log(`🧹 Removed stale: knowledge/${slug}.html`);
@@ -547,17 +578,20 @@ function build() {
 
   // Ensure output directories exist
   if (!existsSync(distDir)) mkdirSync(distDir, { recursive: true });
-  if (!existsSync(knowledgeDistDir)) mkdirSync(knowledgeDistDir, { recursive: true });
+  if (!existsSync(knowledgeDistDir))
+    mkdirSync(knowledgeDistDir, { recursive: true });
 
   // Clean stale HTML files from previous builds (recursive)
-  const existingSlugs = new Set(files.map(f => f.slug));
+  const existingSlugs = new Set(files.map((f) => f.slug));
   cleanStale(knowledgeDistDir, existingSlugs, knowledgeDistDir);
 
   // Generate listing page
   const listingHtml = generateListingPage(files);
-  const listingPath = join(distDir, 'index.html');
-  writeFileSync(listingPath, listingHtml, 'utf-8');
-  const listingSize = Math.round(Buffer.byteLength(listingHtml, 'utf-8') / 1024);
+  const listingPath = join(distDir, "index.html");
+  writeFileSync(listingPath, listingHtml, "utf-8");
+  const listingSize = Math.round(
+    Buffer.byteLength(listingHtml, "utf-8") / 1024,
+  );
   console.log(`✅ ${listingPath} (${listingSize} KB)`);
 
   // Generate reading pages
@@ -566,10 +600,12 @@ function build() {
     const outPath = join(knowledgeDistDir, `${file.slug}.html`);
     // Ensure parent directories exist for nested slugs
     mkdirSync(dirname(outPath), { recursive: true });
-    writeFileSync(outPath, readingHtml, 'utf-8');
-    const size = Math.round(Buffer.byteLength(readingHtml, 'utf-8') / 1024);
+    writeFileSync(outPath, readingHtml, "utf-8");
+    const size = Math.round(Buffer.byteLength(readingHtml, "utf-8") / 1024);
     const meta = extractMetadata(file.body, file.stat, file.slug);
-    console.log(`✅ ${outPath} (${size} KB — ${meta.wordCount.toLocaleString()} words, ${meta.readMinutes} min read)`);
+    console.log(
+      `✅ ${outPath} (${size} KB — ${meta.wordCount.toLocaleString()} words, ${meta.readMinutes} min read)`,
+    );
   }
 
   console.log(`\n🏗️  Build complete — ${files.length + 1} page(s) in dist/`);
