@@ -1,7 +1,7 @@
 {
-  "name": "ink-tutorial-renderer",
-  "version": "1.0.0",
-  "description": "Beautiful Notion/Medium-style markdown renderer for ink-tutorial.md",
+  "name": "knowledge-base",
+  "version": "2.0.0",
+  "description": "Personal knowledge base — Notion/Medium-style markdown renderer for knowledges/",
   "type": "module",
   "scripts": {
     "build": "node build.js",

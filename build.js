@@ -1,900 +1,413 @@
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, readdirSync, statSync, mkdirSync, existsSync, rmSync } from 'fs';
+import { resolve, dirname, join, basename, relative, sep } from 'path';
+import { fileURLToPath } from 'url';
 import { marked } from 'marked';
 import hljs from 'highlight.js';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { generateCSS } from './css.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const knowledgeDir = resolve(__dirname, 'knowledges');
+const distDir = resolve(__dirname, 'dist');
+const knowledgeDistDir = join(distDir, 'knowledge');
 
-// ── Configure marked with syntax highlighting ──────────────────
-marked.setOptions({
-  gfm: true,        // GitHub Flavored Markdown
-  breaks: false,    // Don't turn \n into <br>
-  pedantic: false,
-  highlight(code, lang) {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        return hljs.highlight(code, { language: lang }).value;
-      } catch {}
+// ── Frontmatter parser (simple key: value, no new dependency) ────
+function parseFrontmatter(raw) {
+  const match = raw.match(/^---\s*\n([\s\S]*?)\n---\s*\n/);
+  if (!match) return { metadata: {}, body: raw };
+  const frontmatterBlock = match[1];
+  const body = raw.slice(match[0].length);
+  const metadata = {};
+  for (const line of frontmatterBlock.split('\n')) {
+    const colonIdx = line.indexOf(':');
+    if (colonIdx === -1) continue;
+    const key = line.slice(0, colonIdx).trim();
+    let value = line.slice(colonIdx + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
     }
-    // Auto-detect language if none specified
-    try {
-      return hljs.highlightAuto(code).value;
-    } catch {
-      return code;
-    }
-  },
-});
-
-// Custom renderer for beautiful output
-const renderer = new marked.Renderer();
-
-// ── Pretty code blocks ─────────────────────────────────────────
-renderer.code = function({ text, lang }) {
-  let highlighted;
-  if (lang && hljs.getLanguage(lang)) {
-    highlighted = hljs.highlight(text, { language: lang }).value;
-  } else {
-    highlighted = hljs.highlightAuto(text).value;
+    metadata[key] = value;
   }
-  const langLabel = lang ? `<span class="code-lang">${lang}</span>` : '';
-  return `<div class="code-block-wrapper">
-    <div class="code-block-header">${langLabel}<button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
-    <pre><code class="hljs language-${lang || ''}">${highlighted}</code></pre>
-  </div>`;
-};
-
-// ── Beautiful headings ─────────────────────────────────────────
-renderer.heading = function({ text, depth }) {
-  const id = text.toLowerCase()
-    .replace(/<[^>]*>/g, '')  // strip HTML
-    .replace(/[^\w\s-]/g, '')
-    .replace(/\s+/g, '-');
-  return `<h${depth} id="${id}">
-    <a class="heading-anchor" href="#${id}" aria-hidden="true">#</a>
-    ${text}
-  </h${depth}>`;
-};
-
-// ── Styled blockquotes ─────────────────────────────────────────
-renderer.blockquote = function({ tokens }) {
-  const content = this.parser.parse(tokens);
-  return `<blockquote>${content}</blockquote>`;
-};
-
-// ── Clean tables ───────────────────────────────────────────────
-renderer.table = function({ header, rows }) {
-  const headerHtml = header.map(cell => `<th>${cell.text}</th>`).join('');
-  const bodyHtml = rows
-    .map(row => `<tr>${row.map(cell => `<td>${cell.text}</td>`).join('')}</tr>`)
-    .join('');
-  return `<div class="table-wrapper"><table>
-    <thead><tr>${headerHtml}</tr></thead>
-    <tbody>${bodyHtml}</tbody>
-  </table></div>`;
-};
-
-// ── Inline code ────────────────────────────────────────────────
-renderer.codespan = function({ text }) {
-  return `<code class="inline-code">${text}</code>`;
-};
-
-// ── Images ─────────────────────────────────────────────────────
-renderer.image = function({ href, title, text }) {
-  return `<figure>
-    <img src="${href}" alt="${text}" title="${title || ''}" loading="lazy" />
-    ${text ? `<figcaption>${text}</figcaption>` : ''}
-  </figure>`;
-};
-
-// ── Horizontal rules ───────────────────────────────────────────
-renderer.hr = function() {
-  return `<div class="hr-wrapper"><hr /></div>`;
-};
-
-// ── Links ──────────────────────────────────────────────────────
-renderer.link = function({ href, title, text }) {
-  const titleAttr = title ? ` title="${title}"` : '';
-  return `<a href="${href}"${titleAttr} target="_blank" rel="noopener">${text}</a>`;
-};
-
-// ── Paragraphs ─────────────────────────────────────────────────
-renderer.paragraph = function({ tokens }) {
-  const text = this.parser.parseInline(tokens);
-  // Wrap "Tip:" or "Note:" paragraphs in a callout box
-  if (/^(?:> )?(?:💡 |🔑 |⚠️ |✅ )?(?:Tip:|Note:|Important:|Warning:|Key insight:)/i.test(text)) {
-    return `<div class="callout">${text}</div>`;
-  }
-  return `<p>${text}</p>`;
-};
-
-marked.use({ renderer });
-
-// ── Read and convert markdown ──────────────────────────────────
-const mdPath = resolve(__dirname, 'ink-tutorial.md');
-const markdown = readFileSync(mdPath, 'utf-8');
-
-// Calculate reading time
-const wordCount = markdown.split(/\s+/).length;
-const readTime = Math.max(1, Math.ceil(wordCount / 200));
-
-// Generate TOC from headings
-const headings = [];
-const tocRegex = /^(#{1,6})\s+(.+)$/gm;
-let match;
-while ((match = tocRegex.exec(markdown)) !== null) {
-  headings.push({
-    level: match[1].length,
-    text: match[2].replace(/<[^>]*>/g, ''),
-    id: match[2].toLowerCase()
-      .replace(/<[^>]*>/g, '')
-      .replace(/[^\w\s-]/g, '')
-      .replace(/\s+/g, '-'),
-  });
+  return { metadata, body };
 }
 
-const bodyHtml = marked.parse(markdown);
+// ── Extract metadata from markdown body ───────────────────────────
+function extractMetadata(body, stat, slug) {
+  const h1Match = body.match(/^#\s+(.+)$/m);
+  const title = h1Match ? h1Match[1].replace(/<[^>]*>/g, '').trim() : slug.replace(/-/g, ' ');
 
-// ── Build TOC HTML ─────────────────────────────────────────────
-const tocHtml = headings
-  .filter(h => h.level <= 3)
-  .map(h => `
-    <li class="toc-item toc-level-${h.level}">
-      <a href="#${h.id}">${h.text}</a>
-    </li>`)
-  .join('');
+  const h3Match = body.match(/^###\s+(.+)$/m);
+  const subtitle = h3Match ? h3Match[1].replace(/<[^>]*>/g, '').trim() : '';
 
-// ── Full HTML page ─────────────────────────────────────────────
-const html = `<!DOCTYPE html>
+  const wordCount = body.split(/\s+/).filter(Boolean).length;
+  const readMinutes = Math.max(1, Math.ceil(wordCount / 225));
+
+  return { title, subtitle, wordCount, readMinutes, mtime: stat.mtime };
+}
+
+// ── Extract headings for TOC ──────────────────────────────────────
+function extractHeadings(markdown) {
+  const headings = [];
+  const regex = /^(#{1,6})\s+(.+)$/gm;
+  let match;
+  while ((match = regex.exec(markdown)) !== null) {
+    headings.push({
+      level: match[1].length,
+      text: match[2].replace(/<[^>]*>/g, ''),
+      id: match[2].toLowerCase()
+        .replace(/<[^>]*>/g, '')
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-'),
+    });
+  }
+  return headings;
+}
+
+// ── Configure marked ──────────────────────────────────────────────
+function createRenderer() {
+  const renderer = new marked.Renderer();
+
+  // Code blocks — warm light style
+  renderer.code = function({ text, lang }) {
+    let highlighted;
+    if (lang && hljs.getLanguage(lang)) {
+      highlighted = hljs.highlight(text, { language: lang }).value;
+    } else {
+      highlighted = hljs.highlightAuto(text).value;
+    }
+    const langLabel = lang ? `<span class="code-lang">${lang}</span>` : '';
+    return `<div class="code-block-wrapper">
+      <div class="code-block-header">${langLabel}<button class="copy-btn" onclick="copyCode(this)" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+      <pre><code class="hljs language-${lang || ''}">${highlighted}</code></pre>
+    </div>`;
+  };
+
+  // Headings with anchor links
+  renderer.heading = function({ text, depth }) {
+    const id = text.toLowerCase()
+      .replace(/<[^>]*>/g, '')
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-');
+    return `<h${depth} id="${id}">
+      <a class="heading-anchor" href="#${id}" aria-hidden="true">#</a>
+      ${text}
+    </h${depth}>`;
+  };
+
+  // Blockquotes
+  renderer.blockquote = function({ tokens }) {
+    const content = this.parser.parse(tokens);
+    return `<blockquote>${content}</blockquote>`;
+  };
+
+  // Tables
+  renderer.table = function({ header, rows }) {
+    const headerHtml = header.map(cell => `<th>${cell.text}</th>`).join('');
+    const bodyHtml = rows
+      .map(row => `<tr>${row.map(cell => `<td>${cell.text}</td>`).join('')}</tr>`)
+      .join('');
+    return `<div class="table-wrapper"><table>
+      <thead><tr>${headerHtml}</tr></thead>
+      <tbody>${bodyHtml}</tbody>
+    </table></div>`;
+  };
+
+  // Inline code
+  renderer.codespan = function({ text }) {
+    return `<code class="inline-code">${text}</code>`;
+  };
+
+  // Images
+  renderer.image = function({ href, title, text }) {
+    return `<figure>
+      <img src="${href}" alt="${text}" title="${title || ''}" loading="lazy" />
+      ${text ? `<figcaption>${text}</figcaption>` : ''}
+    </figure>`;
+  };
+
+  // Horizontal rules
+  renderer.hr = function() {
+    return `<div class="hr-wrapper"><hr /></div>`;
+  };
+
+  // Links — external links open in new tab
+  renderer.link = function({ href, title, text }) {
+    const titleAttr = title ? ` title="${title}"` : '';
+    const isExternal = /^https?:\/\//.test(href);
+    const targetAttr = isExternal ? ' target="_blank" rel="noopener"' : '';
+    return `<a href="${href}"${titleAttr}${targetAttr}>${text}</a>`;
+  };
+
+  // Paragraphs with callout detection
+  renderer.paragraph = function({ tokens }) {
+    const text = this.parser.parseInline(tokens);
+    if (/^(?:> )?(?:💡 |🔑 |⚠️ |✅ )?(?:Tip:|Note:|Important:|Warning:|Key insight:)/i.test(text)) {
+      return `<div class="callout">${text}</div>`;
+    }
+    return `<p>${text}</p>`;
+  };
+
+  return renderer;
+}
+
+// ── File discovery (recursive) ─────────────────────────────────────
+function discoverFiles(dir, baseDir = dir) {
+  if (!existsSync(dir)) return [];
+
+  const entries = readdirSync(dir, { withFileTypes: true });
+  const results = [];
+
+  for (const entry of entries) {
+    if (entry.name.startsWith('_')) continue;
+
+    const fullPath = resolve(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      results.push(...discoverFiles(fullPath, baseDir));
+    } else if (entry.isFile() && entry.name.endsWith('.md')) {
+      const raw = readFileSync(fullPath, 'utf-8');
+      const relPath = relative(baseDir, fullPath).split(sep).join('/');
+      const slug = relPath.replace(/\.md$/, '');
+      // Topic = first directory component, or "General" for root files
+      const slashIdx = slug.indexOf('/');
+      const topic = slashIdx === -1 ? 'General' : slug.slice(0, slashIdx);
+      const stat = statSync(fullPath);
+      const { metadata, body } = parseFrontmatter(raw);
+      results.push({ path: fullPath, slug, topic, raw, metadata, body, stat });
+    }
+  }
+
+  // Sort: "General" first, then alpha by topic, within topic by mtime desc
+  results.sort((a, b) => {
+    if (a.topic === 'General' && b.topic !== 'General') return -1;
+    if (b.topic === 'General' && a.topic !== 'General') return 1;
+    if (a.topic !== b.topic) return a.topic.localeCompare(b.topic);
+    return b.stat.mtimeMs - a.stat.mtimeMs;
+  });
+
+  return results;
+}
+
+// ── Render a single knowledge card ─────────────────────────────────
+function renderCard(file) {
+  const meta = extractMetadata(file.body, file.stat, file.slug);
+  const merged = { ...meta, ...file.metadata };
+  return `
+    <a href="/knowledge/${file.slug}" class="knowledge-card">
+      <div class="card-content">
+        <h2 class="card-title">${esc(merged.title)}</h2>
+        ${merged.subtitle ? `<p class="card-subtitle">${esc(merged.subtitle)}</p>` : ''}
+        <div class="card-meta">
+          <span>${merged.wordCount.toLocaleString()} words</span>
+          <span class="meta-sep">·</span>
+          <span>${merged.readMinutes} min read</span>
+          <span class="meta-sep">·</span>
+          <span class="read-indicator unread" data-slug="${file.slug}">
+            <span class="indicator-dot"></span>
+            <span class="indicator-label">Unread</span>
+          </span>
+        </div>
+      </div>
+      <span class="card-arrow">→</span>
+    </a>`;
+}
+
+// ── Generate listing page with topic sections ──────────────────────
+function generateListingPage(files) {
+  // Group files by topic (files already sorted: General first, alpha, mtime desc)
+  const topics = new Map();
+  for (const f of files) {
+    if (!topics.has(f.topic)) topics.set(f.topic, []);
+    topics.get(f.topic).push(f);
+  }
+
+  const bodyHtml = files.length === 0
+    ? `<div class="empty-state">
+        <p>No knowledge files yet.</p>
+        <p class="hint">Add <code>.md</code> files to <code>knowledges/</code> directory or topic folders inside it.</p>
+      </div>`
+    : [...topics.entries()].map(([topic, topicFiles]) => `
+      <section class="topic-section" data-topic="${esc(topic)}">
+        <button class="topic-header" onclick="toggleTopic(this)" aria-expanded="true">
+          <span class="topic-name">${esc(topic)}</span>
+          <span class="topic-meta">
+            <span class="topic-count">${topicFiles.length} file${topicFiles.length !== 1 ? 's' : ''}</span>
+            <span class="topic-toggle" aria-hidden="true">▾</span>
+          </span>
+        </button>
+        <div class="topic-cards">
+          ${topicFiles.map(renderCard).join('\n')}
+        </div>
+      </section>`).join('\n');
+
+  const css = generateCSS({ page: 'listing' });
+
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ink + React: Zero to Hero — Build Interactive Terminal Apps with React</title>
-  <meta name="description" content="A comprehensive tutorial on building interactive terminal apps with React and Ink. From React fundamentals to a real file browser project.">
-  <meta property="og:title" content="Ink + React: Zero to Hero">
-  <meta property="og:description" content="Build Interactive Terminal Apps with React — from fundamentals to a real project.">
-  <meta property="og:type" content="article">
-  <meta name="twitter:card" content="summary_large_image">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..700;1,14..32,400..700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-  <style>
-    /* ══════════════════════════════════════════════════════════════
-       CSS RESET & BASE
-       ══════════════════════════════════════════════════════════════ */
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    :root {
-      --bg: #ffffff;
-      --bg-secondary: #f9fafb;
-      --bg-tertiary: #f3f4f6;
-      --text: #111827;
-      --text-secondary: #4b5563;
-      --text-tertiary: #9ca3af;
-      --border: #e5e7eb;
-      --border-light: #f3f4f6;
-      --accent: #6366f1;
-      --accent-light: #eef2ff;
-      --accent-hover: #4f46e5;
-      --code-bg: #1e293b;
-      --code-text: #e2e8f0;
-      --inline-code-bg: #f1f5f9;
-      --inline-code-text: #e11d48;
-      --callout-bg: #f0fdf4;
-      --callout-border: #86efac;
-      --callout-text: #166534;
-      --toc-bg: #f8fafc;
-      --toc-border: #e2e8f0;
-      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 10px 15px -3px rgba(0,0,0,0.05);
-      --radius: 8px;
-      --radius-lg: 12px;
-      --max-width: 740px;
-      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      --font-serif: 'Merriweather', Georgia, 'Times New Roman', serif;
-      --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
-    }
-
-    html {
-      scroll-behavior: smooth;
-      scroll-padding-top: 100px;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
-
-    body {
-      font-family: var(--font-sans);
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.75;
-      font-size: 17px;
-      letter-spacing: -0.003em;
-    }
-
-    /* ══════════════════════════════════════════════════════════════
-       ARTICLE LAYOUT
-       ══════════════════════════════════════════════════════════════ */
-
-    /* ── Sidebar TOC (desktop) ──────────────────────────────── */
-    .page-wrapper {
-      display: flex;
-      justify-content: center;
-      min-height: 100vh;
-    }
-
-    .toc-sidebar {
-      position: fixed;
-      left: max(20px, calc((100vw - var(--max-width) - 300px) / 2 - 280px));
-      top: 100px;
-      width: 240px;
-      max-height: calc(100vh - 140px);
-      overflow-y: auto;
-      display: none;
-    }
-
-    @media (min-width: 1400px) {
-      .toc-sidebar {
-        display: block;
-      }
-    }
-
-    .toc-sidebar-sticky {
-      background: var(--toc-bg);
-      border: 1px solid var(--toc-border);
-      border-radius: var(--radius-lg);
-      padding: 20px;
-    }
-
-    .toc-sidebar-title {
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--text-tertiary);
-      margin-bottom: 12px;
-    }
-
-    .toc-sidebar nav ul {
-      list-style: none;
-      padding: 0;
-    }
-
-    .toc-sidebar nav ul li {
-      margin-bottom: 4px;
-    }
-
-    .toc-sidebar nav ul li a {
-      display: block;
-      padding: 4px 8px;
-      font-size: 13px;
-      color: var(--text-secondary);
-      text-decoration: none;
-      border-radius: 4px;
-      transition: all 0.15s ease;
-      border-left: 2px solid transparent;
-    }
-
-    .toc-sidebar nav ul li a:hover {
-      background: var(--accent-light);
-      color: var(--accent);
-    }
-
-    .toc-sidebar nav ul li a.active {
-      background: var(--accent-light);
-      color: var(--accent);
-      font-weight: 600;
-      border-left-color: var(--accent);
-    }
-
-    .toc-sidebar nav ul li.toc-level-3 a { padding-left: 24px; font-size: 12px; }
-
-    /* ── Main content ───────────────────────────────────────── */
-    .article-container {
-      width: 100%;
-      max-width: var(--max-width);
-      padding: 60px 24px 120px;
-    }
-
-    /* ── Cover / Hero ───────────────────────────────────────── */
-    .article-cover {
-      margin-bottom: 48px;
-      padding-bottom: 40px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .article-cover-overline {
-      font-size: 13px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--accent);
-      margin-bottom: 16px;
-    }
-
-    .article-cover h1 {
-      font-family: var(--font-serif);
-      font-size: clamp(2rem, 5vw, 3rem);
-      font-weight: 700;
-      line-height: 1.15;
-      letter-spacing: -0.03em;
-      margin-bottom: 16px;
-      color: var(--text);
-    }
-
-    .article-cover-subtitle {
-      font-size: 1.2rem;
-      color: var(--text-secondary);
-      line-height: 1.6;
-      max-width: 600px;
-    }
-
-    .article-meta {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      margin-top: 28px;
-      color: var(--text-tertiary);
-      font-size: 14px;
-    }
-
-    .article-meta-dot {
-      width: 3px;
-      height: 3px;
-      border-radius: 50%;
-      background: var(--text-tertiary);
-    }
-
-    .article-meta strong {
-      color: var(--text-secondary);
-      font-weight: 600;
-    }
-
-    /* ══════════════════════════════════════════════════════════════
-       CONTENT STYLES
-       ══════════════════════════════════════════════════════════════ */
-
-    .article-content h1,
-    .article-content h2,
-    .article-content h3,
-    .article-content h4,
-    .article-content h5,
-    .article-content h6 {
-      font-family: var(--font-sans);
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      color: var(--text);
-      position: relative;
-      line-height: 1.3;
-    }
-
-    .article-content h1 { font-size: 1.75rem; margin: 56px 0 20px; }
-    .article-content h2 { font-size: 1.5rem; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border-light); }
-    .article-content h3 { font-size: 1.25rem; margin: 40px 0 12px; }
-    .article-content h4 { font-size: 1.1rem; margin: 32px 0 10px; }
-
-    .heading-anchor {
-      position: absolute;
-      left: -28px;
-      top: 50%;
-      transform: translateY(-50%);
-      opacity: 0;
-      color: var(--text-tertiary);
-      font-size: 0.9em;
-      font-weight: 400;
-      text-decoration: none;
-      transition: opacity 0.2s ease;
-    }
-
-    h1:hover .heading-anchor,
-    h2:hover .heading-anchor,
-    h3:hover .heading-anchor,
-    h4:hover .heading-anchor {
-      opacity: 1;
-    }
-
-    .article-content p {
-      margin-bottom: 1.35em;
-      color: var(--text);
-    }
-
-    .article-content a {
-      color: var(--accent);
-      text-decoration: none;
-      border-bottom: 1px solid var(--accent-light);
-      transition: border-color 0.2s ease;
-    }
-
-    .article-content a:hover {
-      border-bottom-color: var(--accent);
-    }
-
-    .article-content strong {
-      font-weight: 650;
-      color: #0f172a;
-    }
-
-    .article-content ul,
-    .article-content ol {
-      margin: 0.8em 0 1.5em;
-      padding-left: 1.6em;
-      color: var(--text);
-    }
-
-    .article-content li {
-      margin-bottom: 0.35em;
-      padding-left: 0.2em;
-    }
-
-    .article-content li::marker {
-      color: var(--text-tertiary);
-    }
-
-    .article-content ol > li::marker {
-      color: var(--accent);
-      font-weight: 600;
-      font-size: 0.85em;
-    }
-
-    /* ══════════════════════════════════════════════════════════════
-       CODE BLOCKS
-       ══════════════════════════════════════════════════════════════ */
-
-    .code-block-wrapper {
-      margin: 1.8em 0;
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-      background: var(--code-bg);
-      box-shadow: var(--shadow-md);
-      border: 1px solid #334155;
-    }
-
-    .code-block-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 16px;
-      background: #0f172a;
-      border-bottom: 1px solid #334155;
-    }
-
-    .code-lang {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      font-weight: 600;
-      color: #94a3b8;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-
-    .copy-btn {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: transparent;
-      border: 1px solid #475569;
-      color: #94a3b8;
-      cursor: pointer;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-family: var(--font-sans);
-      font-weight: 500;
-      transition: all 0.15s ease;
-    }
-
-    .copy-btn:hover {
-      background: #1e293b;
-      color: #e2e8f0;
-      border-color: #64748b;
-    }
-
-    .copy-btn.copied {
-      background: #065f46;
-      border-color: #059669;
-      color: #6ee7b7;
-    }
-
-    .code-block-wrapper pre {
-      margin: 0;
-      padding: 20px 16px;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    .code-block-wrapper code {
-      font-family: var(--font-mono);
-      font-size: 13.5px;
-      line-height: 1.65;
-      letter-spacing: -0.01em;
-    }
-
-    /* Highlight.js theme overrides — Night Owl inspired */
-    .hljs {
-      color: #d6deeb;
-      background: transparent;
-    }
-    .hljs-keyword  { color: #c792ea; font-style: italic; }
-    .hljs-string   { color: #ecc48d; }
-    .hljs-comment  { color: #637777; font-style: italic; }
-    .hljs-function { color: #82aaff; }
-    .hljs-title    { color: #82aaff; }
-    .hljs-title.function_ { color: #82aaff; }
-    .hljs-number   { color: #f78c6c; }
-    .hljs-attr     { color: #ffcb8b; }
-    .hljs-built_in { color: #ff5874; }
-    .hljs-literal  { color: #ff5874; }
-    .hljs-type     { color: #ffcb8b; }
-    .hljs-variable { color: #d6deeb; }
-    .hljs-params   { color: #d6deeb; }
-    .hljs-meta     { color: #82aaff; }
-    .hljs-tag      { color: #ff5874; }
-    .hljs-name     { color: #ff5874; }
-    .hljs-attribute { color: #ffcb8b; }
-    .hljs-selector-class { color: #ffcb8b; }
-    .hljs-selector-tag   { color: #ff5874; }
-    .hljs-punctuation    { color: #637777; }
-    .hljs-property { color: #80cbc4; }
-    .hljs-addition { color: #addb67; }
-    .hljs-deletion { color: #ef5350; }
-
-    /* ══════════════════════════════════════════════════════════════
-       INLINE CODE
-       ══════════════════════════════════════════════════════════════ */
-
-    .inline-code {
-      font-family: var(--font-mono);
-      font-size: 0.875em;
-      padding: 0.15em 0.45em;
-      background: var(--inline-code-bg);
-      color: var(--inline-code-text);
-      border-radius: 4px;
-      font-weight: 500;
-      white-space: nowrap;
-      border: 1px solid #e2e8f0;
-    }
-
-    /* ══════════════════════════════════════════════════════════════
-       BLOCKQUOTES
-       ══════════════════════════════════════════════════════════════ */
-
-    .article-content blockquote {
-      margin: 1.8em 0;
-      padding: 16px 20px;
-      border-left: 4px solid var(--accent);
-      background: var(--accent-light);
-      border-radius: 0 var(--radius) var(--radius) 0;
-      color: #4338ca;
-    }
-
-    .article-content blockquote p {
-      margin-bottom: 0.5em;
-    }
-
-    .article-content blockquote p:last-child {
-      margin-bottom: 0;
-    }
-
-    /* ══════════════════════════════════════════════════════════════
-       CALLOUTS
-       ══════════════════════════════════════════════════════════════ */
-
-    .callout {
-      margin: 1.8em 0;
-      padding: 18px 22px;
-      background: var(--callout-bg);
-      border: 1px solid var(--callout-border);
-      border-radius: var(--radius-lg);
-      color: var(--callout-text);
-      font-size: 0.95em;
-      position: relative;
-    }
-
-    .callout p {
-      margin-bottom: 0.4em;
-    }
-
-    .callout p:last-child {
-      margin-bottom: 0;
-    }
-
-    .callout strong {
-      color: #15803d;
-    }
-
-    /* ══════════════════════════════════════════════════════════════
-       TABLES
-       ══════════════════════════════════════════════════════════════ */
-
-    .table-wrapper {
-      margin: 1.8em 0;
-      overflow-x: auto;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-    }
-
-    .article-content table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.9em;
-    }
-
-    .article-content thead {
-      background: var(--bg-secondary);
-    }
-
-    .article-content th {
-      padding: 12px 16px;
-      text-align: left;
-      font-weight: 650;
-      color: var(--text-secondary);
-      font-size: 0.8em;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      border-bottom: 2px solid var(--border);
-    }
-
-    .article-content td {
-      padding: 10px 16px;
-      border-bottom: 1px solid var(--border-light);
-      color: var(--text);
-    }
-
-    .article-content tr:last-child td {
-      border-bottom: none;
-    }
-
-    .article-content tbody tr:hover {
-      background: var(--bg-secondary);
-    }
-
-    /* ══════════════════════════════════════════════════════════════
-       HORIZONTAL RULES
-       ══════════════════════════════════════════════════════════════ */
-
-    .hr-wrapper {
-      margin: 48px 0;
-      text-align: center;
-    }
-
-    hr {
-      border: none;
-      height: 1px;
-      background: linear-gradient(to right, transparent, var(--border), transparent);
-    }
-
-    /* ══════════════════════════════════════════════════════════════
-       IMAGES / FIGURES
-       ══════════════════════════════════════════════════════════════ */
-
-    .article-content figure {
-      margin: 2em 0;
-      text-align: center;
-    }
-
-    .article-content figure img {
-      max-width: 100%;
-      border-radius: var(--radius);
-      box-shadow: var(--shadow-sm);
-    }
-
-    .article-content figcaption {
-      margin-top: 8px;
-      font-size: 0.85em;
-      color: var(--text-tertiary);
-      font-style: italic;
-    }
-
-    /* ══════════════════════════════════════════════════════════════
-       MOBILE TOC (in-content)
-       ══════════════════════════════════════════════════════════════ */
-
-    .in-content-toc {
-      display: block;
-      background: var(--toc-bg);
-      border: 1px solid var(--toc-border);
-      border-radius: var(--radius-lg);
-      padding: 24px;
-      margin: 0 0 48px;
-    }
-
-    @media (min-width: 1400px) {
-      .in-content-toc {
-        display: none;
-      }
-    }
-
-    .in-content-toc-title {
-      font-size: 13px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--text-tertiary);
-      margin-bottom: 14px;
-    }
-
-    .in-content-toc ol {
-      list-style: none;
-      counter-reset: toc-counter;
-      padding: 0;
-      margin: 0;
-    }
-
-    .in-content-toc li {
-      counter-increment: toc-counter;
-      margin-bottom: 6px;
-      padding: 0;
-    }
-
-    .in-content-toc li::marker {
-      content: none;
-    }
-
-    .in-content-toc a {
-      display: flex;
-      align-items: baseline;
-      gap: 10px;
-      padding: 6px 10px;
-      font-size: 14px;
-      color: var(--text-secondary);
-      text-decoration: none;
-      border-radius: 6px;
-      transition: all 0.15s ease;
-      border: none;
-      font-weight: 500;
-    }
-
-    .in-content-toc a::before {
-      content: counter(toc-counter);
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--accent);
-      min-width: 20px;
-      text-align: right;
-      flex-shrink: 0;
-    }
-
-    .in-content-toc a:hover {
-      background: var(--accent-light);
-      color: var(--accent);
-    }
-
-    /* ══════════════════════════════════════════════════════════════
-       BACK TO TOP
-       ══════════════════════════════════════════════════════════════ */
-
-    .back-to-top {
-      position: fixed;
-      bottom: 32px;
-      right: 32px;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: var(--text);
-      color: white;
-      border: none;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0;
-      transform: translateY(20px);
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: var(--shadow-md);
-      z-index: 100;
-      font-size: 18px;
-    }
-
-    .back-to-top.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    .back-to-top:hover {
-      background: var(--accent);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
-    }
-
-    /* ══════════════════════════════════════════════════════════════
-       FOOTER
-       ══════════════════════════════════════════════════════════════ */
-
-    .article-footer {
-      margin-top: 80px;
-      padding-top: 32px;
-      border-top: 1px solid var(--border);
-      text-align: center;
-      color: var(--text-tertiary);
-      font-size: 14px;
-    }
-
-    .article-footer p {
-      margin-bottom: 4px;
-    }
-
-    /* ══════════════════════════════════════════════════════════════
-       SCROLLBAR
-       ══════════════════════════════════════════════════════════════ */
-
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
-
-    /* ══════════════════════════════════════════════════════════════
-       SELECTION
-       ══════════════════════════════════════════════════════════════ */
-
-    ::selection {
-      background: #d9d5ff;
-      color: var(--text);
-    }
-
-    /* ══════════════════════════════════════════════════════════════
-       RESPONSIVE
-       ══════════════════════════════════════════════════════════════ */
-
-    @media (max-width: 768px) {
-      .article-container {
-        padding: 32px 16px 80px;
-      }
-      .article-content {
-        font-size: 16px;
-      }
-      .code-block-wrapper pre {
-        padding: 16px 12px;
-      }
-      .code-block-wrapper code {
-        font-size: 12.5px;
-      }
-      .heading-anchor {
-        display: none;
-      }
-      .back-to-top {
-        bottom: 20px;
-        right: 16px;
-      }
-    }
-  </style>
+  <title>Knowledge Base</title>
+  <meta name="description" content="Personal knowledge base — notes, tutorials, and references.">
+  ${css}
 </head>
 <body>
+  <main class="listing-container">
+    <header class="listing-header">
+      <h1>Knowledge Base</h1>
+      <p class="subtitle">Personal notes, tutorials, and references. Browse by topic, track your progress as you go.</p>
+      <div class="progress-summary">
+        <span class="progress-label"><span id="readCount">0</span> of <span id="totalCount">${files.length}</span> read</span>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progressFill"></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="topic-list">
+      ${bodyHtml}
+    </div>
+
+    <footer class="listing-footer">
+      <p>Add <code>.md</code> files to <code>knowledges/</code> — organized in topic folders, they appear here automatically.</p>
+    </footer>
+  </main>
+
+  <script>
+    (function() {
+      const READ_KEY = 'knowledge-read-status';
+      const COLLAPSE_KEY = 'knowledge-topic-collapse';
+
+      // ── Toggle topic collapse ────────────────────────────────────
+      window.toggleTopic = function(header) {
+        var section = header.closest('.topic-section');
+        var cards = section.querySelector('.topic-cards');
+        var isCollapsed = cards.classList.toggle('collapsed');
+        header.setAttribute('aria-expanded', String(!isCollapsed));
+
+        var collapsed = {};
+        try { collapsed = JSON.parse(localStorage.getItem(COLLAPSE_KEY)) || {}; } catch(e) {}
+        if (isCollapsed) collapsed[section.dataset.topic] = true;
+        else delete collapsed[section.dataset.topic];
+        localStorage.setItem(COLLAPSE_KEY, JSON.stringify(collapsed));
+      };
+
+      // ── Restore collapsed state ──────────────────────────────────
+      var collapsed = {};
+      try { collapsed = JSON.parse(localStorage.getItem(COLLAPSE_KEY)) || {}; } catch(e) {}
+      document.querySelectorAll('.topic-section').forEach(function(section) {
+        if (collapsed[section.dataset.topic]) {
+          section.querySelector('.topic-cards').classList.add('collapsed');
+          section.querySelector('.topic-header').setAttribute('aria-expanded', 'false');
+        }
+      });
+
+      // ── Read status tracking ─────────────────────────────────────
+      function getReadStatus() {
+        try { return JSON.parse(localStorage.getItem(READ_KEY)) || {}; }
+        catch { return {}; }
+      }
+
+      function updateUI() {
+        var status = getReadStatus();
+        var indicators = document.querySelectorAll('.read-indicator');
+        var readCount = 0;
+
+        indicators.forEach(function(el) {
+          var slug = el.dataset.slug;
+          var isRead = !!status[slug];
+          if (isRead) readCount++;
+
+          el.classList.toggle('read', isRead);
+          el.classList.toggle('unread', !isRead);
+          var label = el.querySelector('.indicator-label');
+          if (label) label.textContent = isRead ? 'Read' : 'Unread';
+        });
+
+        var total = indicators.length;
+        document.getElementById('readCount').textContent = readCount;
+        document.getElementById('totalCount').textContent = total;
+        document.getElementById('progressFill').style.width = total ? (readCount / total) * 100 + '%' : '0%';
+      }
+
+      updateUI();
+    })();
+  </script>
+</body>
+</html>`;
+}
+
+// ── Generate reading page ─────────────────────────────────────────
+function generateReadingPage(file, allFiles) {
+  const { body, slug } = file;
+  const meta = extractMetadata(body, file.stat, file.slug);
+  const merged = { ...meta, ...file.metadata };
+
+  // Parse markdown
+  marked.setOptions({ gfm: true, breaks: false, pedantic: false });
+  marked.use({ renderer: createRenderer() });
+  const bodyHtml = marked.parse(body);
+
+  // TOC from headings
+  const headings = extractHeadings(body).filter(h => h.level <= 3);
+  const tocHtml = headings
+    .map(h => `<li class="toc-item toc-level-${h.level}"><a href="#${h.id}">${esc(h.text)}</a></li>`)
+    .join('\n');
+
+  const formattedDate = merged.mtime.toLocaleDateString('en-US', {
+    year: 'numeric', month: 'long', day: 'numeric'
+  });
+
+  const css = generateCSS({ page: 'reading' });
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${esc(merged.title)} — Knowledge Base</title>
+  <meta name="description" content="${esc(merged.subtitle || merged.title)}">
+  <meta property="og:title" content="${esc(merged.title)}">
+  <meta property="og:description" content="${esc(merged.subtitle || merged.title)}">
+  <meta property="og:type" content="article">
+  ${css}
+</head>
+<body>
+  <div class="reading-progress" id="readingProgress"></div>
+
+  <nav class="top-nav">
+    <a href="/" class="nav-back">← Knowledge Base</a>
+    <span class="nav-meta">${merged.readMinutes} min read</span>
+  </nav>
+
   <div class="page-wrapper">
     <!-- Desktop TOC Sidebar -->
     <aside class="toc-sidebar">
       <div class="toc-sidebar-sticky">
-        <div class="toc-sidebar-title">Contents</div>
         <nav>
           <ul>${tocHtml}</ul>
         </nav>
       </div>
     </aside>
 
-    <!-- Main Content -->
-    <main class="article-container">
+    <main class="reading-container">
       <article>
-        <!-- Hero Section -->
-        <header class="article-cover">
-          <div class="article-cover-overline">Tutorial</div>
-          <h1>Ink + React:<br>Zero to Hero</h1>
-          <p class="article-cover-subtitle">Build Interactive Terminal Apps with React — from fundamentals to a real file browser project.</p>
+        <header class="article-hero">
+          <h1>${esc(merged.title)}</h1>
+          ${merged.subtitle ? `<p class="article-subtitle">${esc(merged.subtitle)}</p>` : ''}
           <div class="article-meta">
-            <span><strong>Temicide</strong></span>
-            <span class="article-meta-dot"></span>
-            <span>${readTime} min read</span>
-            <span class="article-meta-dot"></span>
-            <span>~${wordCount.toLocaleString()} words</span>
+            <span>${merged.wordCount.toLocaleString()} words</span>
+            <span class="meta-sep">·</span>
+            <span>${merged.readMinutes} min read</span>
+            <span class="meta-sep">·</span>
+            <span>${formattedDate}</span>
           </div>
         </header>
 
         <!-- In-content TOC (mobile) -->
         <nav class="in-content-toc">
-          <div class="in-content-toc-title">Table of Contents</div>
-          <ol>${headings.filter(h => h.level <= 3).map(h => `<li><a href="#${h.id}">${h.text}</a></li>`).join('')}</ol>
+          <div class="in-content-toc-title">Contents</div>
+          <ol>${headings.map(h => `<li><a href="#${h.id}">${esc(h.text)}</a></li>`).join('\n')}</ol>
         </nav>
 
         <!-- Rendered Content -->
@@ -902,67 +415,164 @@ const html = `<!DOCTYPE html>
           ${bodyHtml}
         </div>
 
-        <!-- Footer -->
         <footer class="article-footer">
-          <p><strong>Happy hacking, Temicide. Build something cool.</strong> 🌈</p>
-          <p>Generated with ♥ from ink-tutorial.md</p>
+          <p>Part of <a href="/">Knowledge Base</a></p>
         </footer>
       </article>
     </main>
   </div>
 
-  <!-- Back to Top Button -->
   <button class="back-to-top" id="backToTop" title="Back to top" aria-label="Back to top">↑</button>
 
   <script>
-    // ── Copy code button ────────────────────────────────────────
+    var PAGE_SLUG = '${slug}';
+
+    // ── Copy code button ──────────────────────────────────────────
     window.copyCode = function(btn) {
-      const code = btn.closest('.code-block-wrapper').querySelector('code').innerText;
-      navigator.clipboard.writeText(code).then(() => {
+      var code = btn.closest('.code-block-wrapper').querySelector('code').innerText;
+      navigator.clipboard.writeText(code).then(function() {
         btn.classList.add('copied');
+        var original = btn.innerHTML;
         btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!';
-        setTimeout(() => {
+        setTimeout(function() {
           btn.classList.remove('copied');
-          btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+          btn.innerHTML = original;
         }, 2000);
       });
     };
 
-    // ── Back to top button ──────────────────────────────────────
-    const backToTop = document.getElementById('backToTop');
-    window.addEventListener('scroll', () => {
+    // ── Reading progress bar ──────────────────────────────────────
+    var progressBar = document.getElementById('readingProgress');
+    var marked = false;
+
+    window.addEventListener('scroll', function() {
+      var scrollH = document.documentElement.scrollHeight - window.innerHeight;
+      var percent = scrollH > 0 ? window.scrollY / scrollH : 0;
+      progressBar.style.setProperty('--progress', Math.min(percent, 1));
+      progressBar.querySelector('::after') || progressBar;
+
+      // Update the pseudo-element scale via inline style
+      var after = progressBar.style;
+      // Use CSS custom property fallback approach
+      progressBar.style.background = 'linear-gradient(to right, var(--accent, #2383E2) ' + (percent * 100) + '%, transparent ' + (percent * 100) + '%)';
+
+      // Auto-mark as read at 80% scroll
+      if (percent > 0.8 && !marked) {
+        markAsRead(PAGE_SLUG);
+        marked = true;
+      }
+    });
+
+    // ── Read tracking ─────────────────────────────────────────────
+    function markAsRead(slug) {
+      var status = {};
+      try { status = JSON.parse(localStorage.getItem('knowledge-read-status')) || {}; } catch(e) {}
+      status[slug] = true;
+      localStorage.setItem('knowledge-read-status', JSON.stringify(status));
+    }
+
+    // ── Back to top ───────────────────────────────────────────────
+    var backToTop = document.getElementById('backToTop');
+    window.addEventListener('scroll', function() {
       if (window.scrollY > 400) {
         backToTop.classList.add('visible');
       } else {
         backToTop.classList.remove('visible');
       }
     });
-    backToTop.addEventListener('click', () => {
+    backToTop.addEventListener('click', function() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
-    // ── Active TOC link highlighting ────────────────────────────
-    const tocLinks = document.querySelectorAll('.toc-sidebar a');
-    const headings = document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4');
+    // ── TOC scroll spy ────────────────────────────────────────────
+    var tocLinks = document.querySelectorAll('.toc-sidebar a');
+    var contentHeadings = document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4');
 
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const id = entry.target.id;
-          tocLinks.forEach(link => {
-            link.classList.toggle('active', link.getAttribute('href') === '#' + id);
-          });
-        }
-      });
-    }, { rootMargin: '-80px 0px -70% 0px' });
+    if ('IntersectionObserver' in window) {
+      var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            var id = entry.target.id;
+            tocLinks.forEach(function(link) {
+              link.classList.toggle('active', link.getAttribute('href') === '#' + id);
+            });
+          }
+        });
+      }, { rootMargin: '-80px 0px -70% 0px' });
 
-    headings.forEach(h => observer.observe(h));
+      contentHeadings.forEach(function(h) { observer.observe(h); });
+    }
   </script>
 </body>
 </html>`;
+}
 
-// ── Write output ────────────────────────────────────────────────
-const outPath = resolve(__dirname, 'index.html');
-writeFileSync(outPath, html, 'utf-8');
-console.log(`✅ Built: ${outPath}`);
-console.log(`   ${Math.round(Buffer.byteLength(html, 'utf-8') / 1024)} KB — ${wordCount.toLocaleString()} words — ~${readTime} min read`);
+// ── HTML escape utility ───────────────────────────────────────────
+function esc(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ── Clean stale HTML files (recursive) ────────────────────────────
+function cleanStale(dir, existingSlugs, baseDir) {
+  if (!existsSync(dir)) return;
+  const entries = readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      cleanStale(fullPath, existingSlugs, baseDir);
+      // Remove empty directories left behind
+      try {
+        if (readdirSync(fullPath).length === 0) rmSync(fullPath);
+      } catch {}
+    } else if (entry.isFile() && entry.name.endsWith('.html')) {
+      const relPath = relative(baseDir, fullPath).split(sep).join('/');
+      const slug = relPath.replace(/\.html$/, '');
+      if (!existingSlugs.has(slug)) {
+        rmSync(fullPath);
+        console.log(`🧹 Removed stale: knowledge/${slug}.html`);
+      }
+    }
+  }
+}
+
+// ── Main build ────────────────────────────────────────────────────
+function build() {
+  const files = discoverFiles(knowledgeDir);
+  console.log(`📂 Found ${files.length} knowledge file(s)`);
+
+  // Ensure output directories exist
+  if (!existsSync(distDir)) mkdirSync(distDir, { recursive: true });
+  if (!existsSync(knowledgeDistDir)) mkdirSync(knowledgeDistDir, { recursive: true });
+
+  // Clean stale HTML files from previous builds (recursive)
+  const existingSlugs = new Set(files.map(f => f.slug));
+  cleanStale(knowledgeDistDir, existingSlugs, knowledgeDistDir);
+
+  // Generate listing page
+  const listingHtml = generateListingPage(files);
+  const listingPath = join(distDir, 'index.html');
+  writeFileSync(listingPath, listingHtml, 'utf-8');
+  const listingSize = Math.round(Buffer.byteLength(listingHtml, 'utf-8') / 1024);
+  console.log(`✅ ${listingPath} (${listingSize} KB)`);
+
+  // Generate reading pages
+  for (const file of files) {
+    const readingHtml = generateReadingPage(file, files);
+    const outPath = join(knowledgeDistDir, `${file.slug}.html`);
+    // Ensure parent directories exist for nested slugs
+    mkdirSync(dirname(outPath), { recursive: true });
+    writeFileSync(outPath, readingHtml, 'utf-8');
+    const size = Math.round(Buffer.byteLength(readingHtml, 'utf-8') / 1024);
+    const meta = extractMetadata(file.body, file.stat, file.slug);
+    console.log(`✅ ${outPath} (${size} KB — ${meta.wordCount.toLocaleString()} words, ${meta.readMinutes} min read)`);
+  }
+
+  console.log(`\n🏗️  Build complete — ${files.length + 1} page(s) in dist/`);
+}
+
+build();
