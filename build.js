@@ -280,7 +280,7 @@ function generateListingPage(files) {
 <body>
   <main class="listing-container">
     <header class="listing-header">
-      <h1>Temicide's knowledge Base</h1>
+      <h1>Temicide's knowledge base</h1>
       <p class="subtitle">Personal notes, tutorials, and references. Browse by topic, track your progress as you go.</p>
       <div class="progress-summary">
         <span class="progress-label"><span id="readCount">0</span> of <span id="totalCount">${files.length}</span> read</span>
