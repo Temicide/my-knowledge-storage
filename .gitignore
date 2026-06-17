@@ -17,6 +17,9 @@ npm-debug.log*
 
 # Build output
 dist/
+.next/
+next-env.d.ts
+*.tsbuildinfo
 
 # Environment
 .env
