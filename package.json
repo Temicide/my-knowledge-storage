@@ -1,15 +1,30 @@
 {
   "name": "knowledge-base",
-  "version": "2.0.0",
-  "description": "Personal knowledge base — Notion/Medium-style markdown renderer for knowledges/",
-  "type": "module",
+  "version": "3.0.0",
+  "description": "Personal knowledge base — Next.js + Tailwind + Supabase (Notion/Medium-style markdown renderer)",
+  "private": true,
   "scripts": {
-    "build": "node build.js",
-    "serve": "node server.js"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.108.2",
     "highlight.js": "^11.10.0",
     "marked": "^14.1.0",
-    "ws": "^8.18.0"
+    "next": "^16.2.9",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.1",
+    "@types/node": "^25.9.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^4.3.1",
+    "typescript": "^6.0.3"
   }
 }

@@ -1,47 +1,60 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Next.js 16 + Tailwind v4 + Supabase. Personal knowledge base + daily-life logger.
 
 ## Commands
 
 ```bash
-npm run build    # Discovers .md files in knowledges/, renders to dist/ via marked + highlight.js
-npm run serve    # Starts dev server on port 3456 with live reload via WebSocket
+npm run dev      # Start Next.js dev server (Turbopack HMR)
+npm run build    # Static build — knowledge pages SSG, listing static
+npm run start    # Production server
+npm run lint     # Next.js ESLint
 ```
 
-No test suite exists. There is no lint/type-check step.
+No test suite. TypeScript strict mode enabled — `npx next build` runs type checks.
 
 ## Architecture
 
-Personal knowledge base — a multi-file markdown → static HTML renderer. Source files live in `knowledges/`; everything else is tooling to convert them into styled, deployable pages.
+Next.js 16 App Router, TypeScript, Tailwind v4 (CSS-first `@theme` config in `app/globals.css`). Supabase for auth + data (existing project — no setup needed).
 
-**Build pipeline** (`build.js`):
-- Discovers all `.md` files in `knowledges/` (skips `_`-prefixed files).
-- Parses optional YAML frontmatter (simple `key: value` parser, no new dependency).
-- Extracts metadata from content (H1→title, H3→subtitle, word count, reading time).
-- Configures `marked` with GFM mode and a fully custom `marked.Renderer` — every block-level and inline element gets custom HTML (code blocks with headers/copy buttons, heading anchors, styled blockquotes/callouts/tables, linked TOC).
-- Syntax highlighting via `highlight.js` with a warm light theme (Notion-inspired palette).
-- **Listing page** (`dist/index.html`): card grid with title, subtitle, word count, read time, read/unread indicator (hydrated client-side from `localStorage`), progress bar ("X of Y read").
-- **Reading pages** (`dist/knowledge/<slug>.html`): Medium-inspired typography (Charter serif 21px, 1.75 line-height, 680px max-width), Notion warm color palette, desktop TOC sidebar (≥1200px), in-content TOC for mobile, reading progress bar, auto-mark-read at 80% scroll.
-- Stale HTML files from removed `.md` sources are cleaned up on each build.
-- One page per file + one listing page.
+### Routes
 
-**CSS** (`css.js`):
-- Exports `generateCSS({ page })` returning the full `<style>` string.
-- Shared design tokens (CSS custom properties on `:root`) — Notion warm palette + Medium typography.
-- Page-specific selectors for `listing` vs `reading` pages.
-- No external stylesheets — all CSS is inline in the generated HTML.
-- No Google Fonts dependency — uses system fonts (Charter/Georgia for serif, system sans-serif for UI, JetBrains Mono for code).
+| Route | Auth | Type | Source |
+|---|---|---|---|
+| `/` | Public | Static | `app/(knowledge)/page.tsx` + `components/knowledge/ListingPage.tsx` |
+| `/knowledge/[...slug]` | Public | SSG | `app/(knowledge)/knowledge/[...slug]/page.tsx` + `components/knowledge/ReadingPage.tsx` |
+| `/login` | Public | Dynamic | `app/(auth)/login/page.tsx` + `components/auth/LoginForm.tsx` |
+| `/register` | Public | Dynamic | `app/(auth)/register/page.tsx` + `components/auth/RegisterForm.tsx` |
+| `/callback` | Public | Route handler | `app/(auth)/callback/route.ts` |
+| `/loglife` | Protected | Dynamic | `app/loglife/page.tsx` + `components/loglife/LogLifeClient.tsx` |
+| `/loglife/stats` | Protected | Dynamic | `app/loglife/stats/page.tsx` + `components/loglife/StatsMockup.tsx` |
 
-**Dev server** (`server.js`):
-- Builds once on startup, then serves static files from `dist/`.
-- Routes: `/` → `dist/index.html`, `/knowledge/:slug` → `dist/knowledge/:slug.html`.
-- Injects a WebSocket client script into served HTML for live reload.
-- Watches `knowledges/` recursively with a 300ms debounce; on any `.md` file add/change/delete, rebuilds and pushes a reload message to all connected WebSocket clients.
+### Content layer (`lib/content.ts` + `lib/markdown.ts`)
 
-**Deployment** (`vercel.json`):
-- Vercel runs `npm run build`, serves static files from `dist/`.
-- `cleanUrls: true` for extensionless URLs (e.g. `/knowledge/ink-tutorial` resolves to `dist/knowledge/ink-tutorial.html`).
-- Fully static site — no SSR, no API routes.
+- Markdown files live in `knowledges/` (topic folders, skip `_`-prefixed). Built at build time via `generateStaticParams`.
+- Rendering: `marked` v14 with full custom `Renderer` (code blocks w/ header+copy, heading anchors, callout detection, styled tables/blockquotes/images/links). Syntax highlighting via `highlight.js` v11.
+- Metadata: H1→title, H3→subtitle, word count, read time (225 wpm).
+- Adding/changing `.md` files requires a new `next build` (SSG — same as old build.js).
+- **Key constraint**: do not change `knowledges/` directory path or the `slug=relative path minus .md` convention.
 
-**Key constraint**: `build.js` writes to `dist/` (not project root). Vercel serves from `dist/`. Do not change the output path without updating `vercel.json`.
+### Design system (`app/globals.css`)
+
+Tailwind v4 `@theme { … }` defines all design tokens as CSS variables — both Tailwind utilities AND `var(--color-*)` custom CSS. System fonts only (no Google Fonts). Warm Notion palette + Medium serif typography (Charter 21px, 1.75 line-height, 680px max-width). Desktop TOC sidebar at ≥1200px. hljs warm light theme. Tokens preserved from the original `css.js`.
+
+### Supabase
+
+- **Ref**: existing project. `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env.local`.
+- **Clients**: three-client pattern from `@supabase/ssr` — `lib/supabase/browser.ts` (Client Components), `lib/supabase/server.ts` (Server Components/Route Handlers), `lib/supabase/middleware.ts` + root `middleware.ts` (session refresh + route guard).
+- **Auth**: Supabase Auth (email/password + magic link). Users stored in `auth.users`. No custom users table.
+- **Tables** (RLS on both, own rows only):
+  - `read_status(user_id uuid, slug text, read_at timestamptz, unique(user_id,slug))`
+  - `daily_logs(user_id uuid, log_date date, what_done text, happiest_thing text, updated_at timestamptz, unique(user_id,log_date))`
+- **Read-progress sync**: `lib/read-status.ts` — dual strategy. Authed → Supabase `read_status` table (with localStorage→Supabase migration on first authed visit). Anon → localStorage key `knowledge-read-status`.
+
+### /loglife feature
+
+Apple-Calendar year view (12 mini-month grids, Sunday start). Day states: logged=green, past-unlogged=gray, future=normal, today=blue ring, selected=blue fill. 3 percentage bars (week/month/year — denominator = days elapsed in period). 2-textarea logging form (Q1: "what have you done today?", Q2: "happiest thing?") with upsert to `daily_logs` on `user_id,log_date`. `/loglife/stats` = static mockup with placeholder charts (no real AI yet).
+
+### Deployment
+
+Vercel zero-config (Next.js auto-detected). Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Supabase redirect URLs: add `http://localhost:3000/callback` + prod `/callback`. No `vercel.json` needed.
